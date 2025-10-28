@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>Jogo</title>
+  <style>
+    /* reset simples */
+    html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#121212;color:#e6e6e6}
+    .app{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;padding:18px}
+    header{position:fixed;top:8px;left:0;right:0;text-align:center;font-size:12px;opacity:0.9}
+    .score{background:transparent;padding:6px 10px;border-radius:10px}
+
+    .card{width:100%;max-width:420px;background:#141414;border-radius:12px;padding:18px;box-sizing:border-box;margin-top:60px}
+
+    input[type=text], input[type=password]{width:100%;padding:14px;border-radius:10px;border:1px solid #2a2a2a;background:#0f0f0f;color:#e6e6e6;font-size:18px}
+    button{padding:14px;border-radius:12px;border:0;font-size:20px;font-weight:600}
+    .btn-green{background:#1db954;color:#fff}
+    .btn-purple{background:#7b61ff;color:#fff}
+    .btn-red{background:#e53935;color:#fff}
+    .big-row{display:flex;gap:12px}
+    .circle-btn{flex:1;border-radius:999px;padding:18px;text-align:center}
+    .hidden{display:none}
+
+    .center{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .categories{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .category-btn{padding:14px;border-radius:10px}
+
+    .three-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+    /* lobby and teams for admin drag */
+    .lists{display:flex;gap:8px;flex-direction:column}
+    .list{border:1px dashed #2a2a2a;padding:8px;border-radius:8px;min-height:60px}
+    .player-item{padding:8px;border-radius:8px;background:#111;cursor:grab;margin-bottom:6px}
+
+    /* word screen */
+    .word-large{font-size:36px;text-align:center;margin:20px 0}
+
+    /* verification grid */
+    .word-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+    .word-box{padding:8px;border-radius:6px;text-align:center;font-weight:700}
+    .hit{background:#0b6623;color:#fff}
+    .skip{background:#8b0000;color:#fff}
+    .neutral{background:#222;color:#fff}
+
+    @media(min-width:600px){.card{margin-top:90px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header><div class="score" id="score">Team1: 0 — Team2: 0</div></header>
+
+    <div class="card" id="screen">
+      <!-- screens rendered by JS -->
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    // state from server
+    let local = { id: null, role: 'visitor', name: '' };
+    let serverState = {};
+
+    // small helper to render
+    const screen = document.getElementById('screen');
+    const scoreElem = document.getElementById('score');
+
+    // prevent close without warning
+    window.addEventListener('beforeunload', function (e) {
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    // initial screen 1 — name
+// --- renderNameScreen (não emite 'join' aqui) ---
+function renderNameScreen() {
+  screen.innerHTML = `
+    <div class="center">
+      <h2>Nome do dispositivo</h2>
+      <input id="devName" type="text" placeholder="Digite aqui" />
+      <button id="next" class="btn-green hidden">Avançar</button>
+    </div>
+  `;
+  const nameInput = document.getElementById('devName');
+  const nextBtn = document.getElementById('next');
+  nameInput.addEventListener('input', () => {
+    if (nameInput.value.trim().length >= 2) nextBtn.classList.remove('hidden');
+    else nextBtn.classList.add('hidden');
+  });
+  nextBtn.addEventListener('click', ()=>{
+    // armazenamos o nome localmente e só enviamos join depois que o usuário
+    // escolher Visitante ou Admin na Tela 2.
+    local.name = nameInput.value.trim();
+    renderRoleScreen();
+  });
+}
+
+// --- renderRoleScreen (emitir 'join' quando o usuário escolhe) ---
+function renderRoleScreen() {
+  screen.innerHTML = `
+    <div class="center">
+      <button id="visitor" class="btn-green" style="width:100%">Visitante</button>
+      <div style="height:12px"></div>
+      <div style="width:100%">
+        <button id="adminBtn" class="btn-green" style="width:100%">Admin</button>
+        <div id="adminPassWrap" class="hidden" style="margin-top:8px">
+          <input id="adminPass" type="password" placeholder="Senha" />
+          <button id="adminLogin" class="btn-green" style="width:100%;margin-top:8px">Entrar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  // Quando o jogador escolhe "Visitante" emitimos join como visitor
+  document.getElementById('visitor').onclick = ()=>{
+    socket.emit('join', { name: local.name, role: 'visitor' });
+    // esperamos o evento 'joined' do servidor para prosseguir
+  };
+  document.getElementById('adminBtn').onclick = ()=>{
+    document.getElementById('adminPassWrap').classList.remove('hidden');
+  };
+  document.getElementById('adminLogin').onclick = ()=>{
+    const pass = document.getElementById('adminPass').value;
+    socket.emit('join', { name: local.name, role: 'admin', password: pass });
+    // o servidor validará a senha; aguardamos 'joined'
+  };
+}
+
+    // render teams screen
+    function renderTeamsScreen() {
+      screen.innerHTML = `
+        <h3>Equipes</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div><strong>Lobby</strong><div id="lobby" class="list"></div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <div style="flex:1"><strong>Equipe 1</strong><div id="team1" class="list"></div></div>
+            <div style="flex:1"><strong>Equipe 2</strong><div id="team2" class="list"></div></div>
+          </div>
+          <button id="startGame" class="btn-green">Iniciar</button>
+        </div>
+      `;
+
+      // drag/drop handlers
+      function makeDraggable(elem, pid) {
+        elem.draggable = true;
+        elem.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', pid);
+        });
+      }
+      ['lobby','team1','team2'].forEach(id => {
+        const drop = document.getElementById(id);
+        drop.ondragover = e => e.preventDefault();
+        drop.ondrop = e => {
+          e.preventDefault();
+          const pid = e.dataTransfer.getData('text/plain');
+          // emit move-player only if we are admin
+          if (local.role !== 'admin') return;
+          socket.emit('move-player', { playerId: pid, target: id });
+        };
+      });
+
+      document.getElementById('startGame').addEventListener('click', ()=>{
+        if (local.role !== 'admin') return;
+        renderCategoriesScreen();
+      });
+
+      updateLists();
+    }
+
+    function updateLists() {
+      // fill lobby/team lists
+      const lobby = document.getElementById('lobby');
+      const team1 = document.getElementById('team1');
+      const team2 = document.getElementById('team2');
+      if (!lobby) return;
+      lobby.innerHTML = '';
+      team1.innerHTML = '';
+      team2.innerHTML = '';
+      (serverState.lobby || []).forEach(pid => {
+        const p = serverState.players.find(x=>x.id===pid);
+        if (!p) return;
+        const div = document.createElement('div'); div.className='player-item'; div.textContent = p.name; div.id = 'p-'+p.id;
+        lobby.appendChild(div);
+        makeDraggableClient(div, p.id);
+      });
+      (serverState.team1 || []).forEach(pid => {
+        const p = serverState.players.find(x=>x.id===pid);
+        if (!p) return;
+        const div = document.createElement('div'); div.className='player-item'; div.textContent = p.name; div.id = 'p-'+p.id;
+        team1.appendChild(div);
+        makeDraggableClient(div, p.id);
+      });
+      (serverState.team2 || []).forEach(pid => {
+        const p = serverState.players.find(x=>x.id===pid);
+        if (!p) return;
+        const div = document.createElement('div'); div.className='player-item'; div.textContent = p.name; div.id = 'p-'+p.id;
+        team2.appendChild(div);
+        makeDraggableClient(div, p.id);
+      });
+    }
+
+    function makeDraggableClient(div, id) {
+      if (local.role !== 'admin') return;
+      div.draggable = true;
+      div.addEventListener('dragstart', e=>e.dataTransfer.setData('text/plain', id));
+    }
+
+    function renderCategoriesScreen() {
+      // only admin can click, but visitors see it
+      const cats = ['animais','tv e cinema','objetos','lugares','pessoas','esportes e jogos','profissões','alimentos','personagens','bíblico'];
+      screen.innerHTML = `
+        <h3>Categorias</h3>
+        <div class="categories" id="cats"></div>
+        <div style="height:12px"></div>
+        <button id="finalize" class="btn-purple" style="width:100%">Finalizar</button>
+      `;
+      const catsWrap = document.getElementById('cats');
+      cats.forEach(c=>{
+        const btn = document.createElement('button');
+        btn.textContent = c;
+        btn.className = 'category-btn btn-green';
+        btn.style.width='100%';
+        if ((serverState.usedCategories||[]).includes(c)) { btn.disabled = true; btn.style.opacity=0.4; }
+        btn.addEventListener('click', ()=>{
+          if (local.role!=='admin') return;
+          socket.emit('start-category', { category: c });
+        });
+        catsWrap.appendChild(btn);
+      });
+
+      document.getElementById('finalize').addEventListener('click', ()=>{
+        if (local.role !== 'admin') return;
+        // show confirm
+        if (confirm('Deseja mesmo encerrar?')) {
+          socket.emit('finalize-game');
+        }
+      });
+    }
+
+    // render prepare screen
+    function renderPrepareScreen(playerId, category) {
+      const isMe = (local.id === playerId);
+      screen.innerHTML = `
+        <div class="center">
+          <h3>Preparar ${isMe ? '(você)' : ''}</h3>
+          <p>Categoria: ${category}</p>
+          <button id="startBtn" class="btn-green">Iniciar</button>
+        </div>
+      `;
+      const startBtn = document.getElementById('startBtn');
+      if (!isMe) startBtn.disabled = true;
+      startBtn.addEventListener('click', ()=>{
+        if (!isMe) return;
+        socket.emit('start-turn');
+      });
+    }
+
+    // render turn for active player (6a)
+    let activeWord = null;
+    let activeTime = null;
+    function renderActivePlayer(word, timeLeft) {
+      screen.innerHTML = `
+        <div class="center">
+          <div id="time" style="font-size:30px">${timeLeft}</div>
+          <div class="word-large" id="word">${word}</div>
+          <div class="big-row">
+            <button id="hit" class="circle-btn btn-green">Acertou</button>
+            <button id="skip" class="circle-btn btn-red">Pular</button>
+          </div>
+        </div>
+      `;
+      activeWord = word; activeTime = timeLeft;
+      document.getElementById('hit').onclick = ()=>{
+        socket.emit('action', { type: 'hit', word: activeWord });
+      };
+      document.getElementById('skip').onclick = ()=>{
+        socket.emit('action', { type: 'skip', word: activeWord });
+      };
+      updateScoreHeader();
+    }
+
+    // render turn for spectators (6b)
+    function renderSpectator(timeLeft) {
+      screen.innerHTML = `
+        <div class="center">
+          <div id="time" style="font-size:30px">${timeLeft}</div>
+          <div style="margin-top:20px">Aguarde — jogador ativo vê as palavras</div>
+        </div>
+      `;
+      activeTime = timeLeft;
+      updateScoreHeader();
+    }
+
+    // verification screen 7
+    function renderVerification(roundWords) {
+      const boxes = roundWords.map(r=>`<div class="word-box ${r.result==='hit'?'hit':'skip'}">${r.word}</div>`).join('');
+      screen.innerHTML = `
+        <h3>Verificação</h3>
+        <div class="word-grid">${boxes}</div>
+        <div style="height:12px"></div>
+        <button id="advance" class="btn-green">Avançar</button>
+      `;
+      document.getElementById('advance').onclick = ()=>{
+        if (local.role !== 'admin') return;
+        socket.emit('advance-after-verification');
+      };
+    }
+
+    // game final
+    function renderGameFinal(scores) {
+      screen.innerHTML = `
+        <h3>Placar Final</h3>
+        <div style="font-size:22px">Equipe 1: ${scores.team1} — Equipe 2: ${scores.team2}</div>
+      `;
+    }
+
+    function updateScoreHeader() {
+      scoreElem.textContent = `Team1: ${serverState.scores ? serverState.scores.team1 : 0} — Team2: ${serverState.scores ? serverState.scores.team2 : 0}`;
+    }
+
+    // socket listeners
+    socket.on('joined', ({ ok, id, role }) => {
+      if (ok) { local.id = id; local.role = role; }
+      // after join we show teams screen
+      renderTeamsScreen();
+    });
+
+    socket.on('state', st => {
+      serverState = st;
+      updateScoreHeader();
+      // update lists on team screen
+      updateLists();
+      // disable admin-only buttons if not admin
+      // ... handled in rendering functions
+    });
+
+    socket.on('prepare-player', ({ playerId, category }) => {
+      renderPrepareScreen(playerId, category);
+    });
+
+    socket.on('turn-start', ({ timeLeft }) => {
+      // will wait for 'word' event for active player's word
+      if (local.id === serverState.current ? serverState.current.currentPlayerId : null) {
+        // but we don't know yet; wait for 'word' specifically
+      }
+      // show timer for all
+      renderSpectator(timeLeft);
+    });
+
+    socket.on('time-tick', ({ timeLeft }) => {
+      // if active player view is showing, update time and hide skip if <=5
+      const timeElem = document.getElementById('time');
+      if (timeElem) timeElem.textContent = timeLeft;
+      if (timeLeft <= 5) {
+        const skipBtn = document.getElementById('skip'); if (skipBtn) skipBtn.style.display = 'none';
+      }
+    });
+
+    socket.on('word', ({ word }) => {
+      // if I'm the chosen player, show active player UI
+      if (local.id === serverState.current ? serverState.current.currentPlayerId : null) {
+        renderActivePlayer(word, 75);
+      } else {
+        // if not chosen (spectator) ensure spectator view
+        renderSpectator(75);
+      }
+    });
+
+    socket.on('skipping', ({ word }) => {
+      // hide interface and show pulando... for 3s for active player
+      if (local.id === serverState.current ? serverState.current.currentPlayerId : null) {
+        screen.innerHTML = `<div class="center"><div id="time">...</div><div style="font-size:28px">pulando...</div></div>`;
+      }
+    });
+
+    socket.on('turn-end', ({ roundWords, scores }) => {
+      // show verification screen (words with hit/skip)
+      renderVerification(roundWords);
+      serverState.scores = scores;
+      updateScoreHeader();
+    });
+
+    socket.on('scores', (scores) => { serverState.scores = scores; updateScoreHeader(); });
+
+    socket.on('game-final', ({ scores }) => {
+      renderGameFinal(scores);
+    });
+
+    socket.on('no-words', () => {
+      alert('Sem mais palavras nesta categoria.');
+      // go to spectator screen
+      renderSpectator(0);
+    });
+
+    // initial render
+    renderNameScreen();
+  </script>
+</body>
+</html>
