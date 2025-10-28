@@ -1,0 +1,38 @@
+:root{--bg:#121212;--panel:#181818;--green:#1db954;--purple:#7b2cff;--text:#e6e6e6}
+*{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
+html,body,#app{height:100%;margin:0;background:var(--bg);color:var(--text)}
+#app{padding:20px;display:flex;align-items:flex-start;justify-content:center}
+.container{width:100%;max-width:540px}
+.card{background:var(--panel);padding:18px;border-radius:12px}
+.center{display:flex;flex-direction:column;align-items:center}
+input[type=text], input[type=password]{width:100%;padding:14px;border-radius:8px;border:0;background:#0f0f0f;color:var(--text);font-size:18px}
+button{padding:14px 18px;border-radius:10px;border:0;font-size:18px}
+.btn-green{background:var(--green);color:#fff}
+.btn-purple{background:var(--purple);color:#fff}
+.title{font-size:20px;margin-bottom:12px}
+.big{font-size:28px}
+.row{display:flex;gap:12px}
+.team-section{display:flex;gap:12px;margin-top:12px}
+.section{flex:1;padding:12px;background:#0d0d0d;border-radius:8px;min-height:120px}
+.player{padding:8px;margin:6px 0;border-radius:8px;background:#111;cursor:grab}
+.dragging{opacity:0.5}
+.scroller{display:flex;flex-wrap:wrap;gap:8px}
+.timer{font-size:44px;text-align:center;margin:10px 0}
+.word{font-size:36px;text-align:center;margin:10px 0}
+.controls{display:flex;gap:12px;justify-content:center}
+.circle{width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.btn-big{font-size:20px;padding:18px 22px}
+.scorebar{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#0f0f0f;padding:6px 12px;border-radius:12px;font-size:14px}
+@media(max-width:420px){.circle{width:120px;height:120px;border-radius:60px}}
+
+/* small helper to hide elements */
+.hidden{display:none}
+
+/* category buttons */
+.category{padding:12px 18px;border-radius:10px;background:var(--green);color:#fff;margin:6px;display:inline-block}
+
+/* words list in review */
+.words-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.word-card{padding:8px;border-radius:8px;text-align:center}
+.correct{background:#0a3; color:#012}
+.skipped{background:#601; color:#300}
