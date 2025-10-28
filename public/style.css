@@ -1,0 +1,41 @@
+:root{
+  --bg:#121212;
+  --panel:#181818;
+  --accent:#1db954; /* spotify green */
+  --muted:#b3b3b3;
+  --purple:#7b2cbf;
+}
+*{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
+html,body,#app{height:100%;margin:0;background:var(--bg);color:#fff}
+.screen{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:16px}
+.hidden{display:none}
+input{padding:12px;border-radius:10px;border:0;background:#222;color:#fff;font-size:18px;width:90%;max-width:360px}
+.pill{margin-top:12px;padding:14px 22px;border-radius:999px;border:0;background:var(--accent);color:#000;font-weight:700;font-size:18px}
+.pill.purple{background:var(--purple);color:#fff}
+.pill.large{padding:18px 26px;font-size:20px}
+.centerColumn{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.teamsRow{display:flex;gap:8px;width:100%;padding:8px}
+.panel{flex:1;background:var(--panel);padding:12px;border-radius:12px}
+.dropzone{min-height:120px;padding:8px}
+.playerItem{padding:10px;border-radius:10px;background:#0f0f0f;margin-bottom:8px;cursor:grab}
+.actions{margin-top:12px}
+#categoriesGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:100%;padding:10px}
+.categoryBtn{padding:16px;border-radius:12px;background:#0f0f0f;border:1px solid #222;font-size:18px}
+#scorebar{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:transparent;padding:6px 12px;border-radius:20px;font-weight:700;font-size:14px;opacity:0.9}
+#timerDisplay{font-size:40px;margin-bottom:8px}
+.bigText{font-size:36px;margin:12px}
+#controls{display:flex;gap:12px}
+.circle{width:120px;height:120px;border-radius:999px;border:0;font-weight:800;font-size:18px}
+.circle.green{background:var(--accent);color:#000}
+.circle.red{background:#ff595e;color:#fff}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+.card{background:var(--panel);padding:20px;border-radius:10px}
+.row{display:flex;gap:8px;justify-content:center;margin-top:12px}
+#resultsList{width:100%;max-width:420px}
+.resultItem{padding:8px;border-radius:8px;margin-bottom:6px}
+.resultItem.guessed{background:rgba(29,185,84,0.2);color:#9ef0b1}
+.resultItem.skipped{background:rgba(255,89,94,0.15);color:#ff9b9b}
+@media (max-width:420px){
+  .circle{width:92px;height:92px}
+  .bigText{font-size:28px}
+}
