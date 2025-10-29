@@ -21,7 +21,7 @@ html,body {
   padding:16px;
 }
 
-/* <-- FIX: esconder todas as telas por padrão; mostrar apenas a tela 1 inicialmente --> */
+/* esconder todas as telas por padrão; mostrar apenas a tela 1 inicialmente */
 .screen { display: none; }
 #screen-1 { display: flex; justify-content: center; align-items: center; }
 
@@ -82,10 +82,18 @@ input[type="text"] {
 .result-correct { background:rgba(29,185,84,0.15); color:var(--accent); }
 .result-skipped { background:rgba(229,57,53,0.08); color:var(--danger); }
 #scoreboard { position:fixed; left:50%; transform:translateX(-50%); top:8px; background:var(--glass); padding:6px 12px; border-radius:20px; font-size:14px; z-index:1000; }
-.hidden { display:none; }
+
+/* Modal */
 .modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:2000; }
 .modal-content { background:var(--card); padding:18px; border-radius:12px; text-align:center; }
 .modal-actions { margin-top:12px; display:flex; gap:10px; justify-content:center; }
+
+/* garantir que modal.hidden realmente esconda o modal, mesmo com .modal definindo display */
+.modal.hidden { display: none !important; }
+
+/* classe genérica de esconder elemento */
+.hidden { display:none; }
+
 .prepare { font-size:20px; margin-bottom:12px; }
 .final-score { background:var(--card); padding:18px; border-radius:12px; width:100%; text-align:center; }
 @media (max-width:420px) {
