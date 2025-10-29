@@ -2,60 +2,60 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Jogo Palavras - Tempo Real</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jogo Realtime</title>
 <link rel="stylesheet" href="style.css" />
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 <div id="app">
   <div id="screen1" class="screen active">
-    <div class="top">
-      <input id="nameInput" placeholder="nome" maxlength="24" />
+    <div class="top-row">
+      <input id="nameInput" placeholder="Seu nome" maxlength="24" />
+      <button id="confirmName" class="primary">Confirmar nome</button>
     </div>
     <div class="teams">
       <div id="team1" class="team">Equipe 1</div>
       <div id="team2" class="team">Equipe 2</div>
     </div>
-    <div class="playersList">
-      <div class="playersTitle">Jogadores</div>
-      <ul id="playersUl"></ul>
-    </div>
-    <button id="btnCategorias" class="big">categorias</button>
+    <div id="playersList" class="players"></div>
+    <button id="btnCategorias" class="secondary">Categorias</button>
   </div>
 
   <div id="screen2" class="screen">
-    <div class="top scorebar">
-      <div class="score">Equipe 1: <span id="score1">0</span></div>
-      <div class="score">Equipe 2: <span id="score2">0</span></div>
+    <div class="scoreboard">
+      <div>Equipe 1: <span id="score1">0</span></div>
+      <div>Equipe 2: <span id="score2">0</span></div>
     </div>
-    <div class="categories">
-      <div class="catTitle">Categorias</div>
-      <div id="categoriesWrap"></div>
+    <div class="categories" id="categories">
+      <button data-cat="animais">animais</button>
+      <button data-cat="tv_e_cinema">tv e cinema</button>
+      <button data-cat="objetos">objetos</button>
+      <button data-cat="lugares">lugares</button>
+      <button data-cat="pessoas">pessoas</button>
+      <button data-cat="esportes_e_jogos">esportes e jogos</button>
+      <button data-cat="profissoes">profissões</button>
+      <button data-cat="alimentos">alimentos</button>
+      <button data-cat="personagens">personagens</button>
+      <button data-cat="biblico">bíblico</button>
     </div>
-    <div class="playersRadios">
-      <div class="pickTitle">Escolha o jogador</div>
-      <div id="playersRadiosWrap"></div>
-    </div>
-    <button id="btnStartRound" class="big">iniciar round</button>
-    <button id="btnBackFrom2" class="big outline">voltar</button>
+    <div id="playersButtons" class="playersButtons"></div>
+    <button id="startRound" class="primary">iniciar round</button>
   </div>
 
   <div id="screen3" class="screen">
-    <div class="top timer">Tempo restante: <span id="timer">75</span>s</div>
-    <div class="wordArea">
-      <div id="wordLarge" class="wordLarge">...</div>
-    </div>
-    <div class="actions">
+    <div class="timer" id="timer">75</div>
+    <div id="wordArea" class="wordArea">Aguardando...</div>
+    <div id="controls" class="controls">
       <button id="btnAcertou" class="circle green">acertou</button>
       <button id="btnPular" class="circle red">pular</button>
     </div>
+    <div id="othersNotice" class="othersNotice">Aguardando jogador...</div>
   </div>
 
   <div id="screen4" class="screen">
-    <div class="resultsTitle">Resultados</div>
-    <div id="resultsWrap" class="resultsWrap"></div>
-    <button id="btnCategoriasAfter" class="big">categorias</button>
+    <div class="results" id="results"></div>
+    <button id="backCategorias" class="secondary">categorias</button>
   </div>
 </div>
 
