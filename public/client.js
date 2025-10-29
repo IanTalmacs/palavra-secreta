@@ -16,7 +16,6 @@ function render(state){
   renderCategories(state);
   renderAnswered(state);
   if(state.round && state.round.endTime){
-    // start timer updates handled by tick events
   }
 }
 
@@ -98,17 +97,6 @@ function renderPlayers(state){
       ul.appendChild(li);
     });
   });
-  // set up drop targets only for admin
-  ['lobby','team1','team2'].forEach(k=>{
-    const ul = document.getElementById(k);
-    ul.addEventListener('dragover', e=>e.preventDefault());
-    ul.addEventListener('drop', e=>{
-      e.preventDefault();
-      const pid = e.dataTransfer.getData('text/plain');
-      socket.emit('dragUpdate', { playerId: pid, toTeam: k });
-    });
-  });
-  // render teams in screen3
   const tp = document.getElementById('teamsPlayers');
   if(tp){
     tp.innerHTML = '';
@@ -175,7 +163,6 @@ document.getElementById('categoriesBtn2').addEventListener('click', ()=>{
   socket.emit('advanceScreen');
 });
 
-// Screen control
 function showScreen(n){
   [1,2,3,4,5].forEach(i=>{
     const el = document.getElementById('screen-'+i);
@@ -184,9 +171,7 @@ function showScreen(n){
   });
 }
 
-// start button for chosen player
 function showStartForMe(show){
-  // create or remove start button
   const controls = document.getElementById('controls');
   let btn = document.getElementById('startBtn');
   if(show){
@@ -237,7 +222,6 @@ function startLocalTimer(endTime){
       clearInterval(timerInterval);
       timerInterval = null;
     }
-    // hide skip button at <=5 secs
     const sk = document.getElementById('skipBtn');
     if(sk){
       if(sec <= 5) sk.style.display = 'none'; else sk.style.display = '';
@@ -270,8 +254,25 @@ function renderAnswered(state){
   }
 }
 
-// warn before unload
+function setupDropTargets(){
+  ['lobby','team1','team2'].forEach(k=>{
+    const ul = document.getElementById(k);
+    if(!ul) return;
+    ul.ondragover = (e)=> e.preventDefault();
+    ul.ondrop = (e)=> {
+      e.preventDefault();
+      const pid = e.dataTransfer.getData('text/plain');
+      socket.emit('dragUpdate', { playerId: pid, toTeam: k });
+    };
+  });
+}
+
 window.addEventListener('beforeunload', function (e) {
   e.preventDefault();
   e.returnValue = '';
+});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  setupDropTargets();
+  showScreen(1);
 });

@@ -2,6 +2,7 @@
 :root{--bg:#121212;--accent:#1db954;--muted:#b3b3b3;--card:#181818;--danger:#e63946;}
 html,body,#app{height:100%;}
 body{background:linear-gradient(180deg,#0f0f0f,#121212);color:#fff;padding:16px;}
+[hidden]{display:none !important;}
 .screen{display:flex;flex-direction:column;gap:12px;height:100%;}
 .top{display:flex;gap:8px;align-items:center;}
 .top input{flex:1;padding:14px;border-radius:999px;border:none;background:#222;color:#fff;font-size:18px;}
