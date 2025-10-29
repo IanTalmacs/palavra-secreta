@@ -11,8 +11,8 @@ let state = createInitialState();
 function createInitialState(){
   return {
     screen: 1,
-    players: {}, // socketId -> player
-    order: [], // socketId order
+    players: {},
+    order: [],
     adminId: null,
     teams: { lobby: [], team1: [], team2: [] },
     scores: { team1:0, team2:0 },
@@ -20,7 +20,7 @@ function createInitialState(){
     selectedCategory: null,
     wordsPool: JSON.parse(JSON.stringify(WORDS)),
     usedWords: [],
-    round: null, // {playerId, team, endTime, currentWord, skipping, answered: [{word, result}]}
+    round: null,
   }
 }
 
@@ -75,20 +75,20 @@ io.on('connection', socket => {
   });
 
   socket.on('dragUpdate', ({playerId, toTeam}) => {
-    if(socket.id !== state.adminId) return;
+    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
     if(!state.players[playerId]) return;
-    const from = state.players[playerId].team;
-    if(from === toTeam) return;
-    // remove from old
-    state.teams[from] = state.teams[from].filter(id => id !== playerId);
+    if(!['lobby','team1','team2'].includes(toTeam)) return;
+    // remove from any team it may be in
+    for(const t of ['lobby','team1','team2']){
+      state.teams[t] = state.teams[t].filter(id => id !== playerId);
+    }
     state.teams[toTeam].push(playerId);
     state.players[playerId].team = toTeam;
     io.emit('state', sanitizeState());
   });
 
   socket.on('advanceScreen', () => {
-    if(socket.id !== state.adminId) return;
-    // advance screens sequentially
+    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
     if(state.screen === 1) state.screen = 2;
     else if(state.screen === 2) state.screen = 3;
     else if(state.screen === 3) state.screen = 4;
@@ -99,7 +99,7 @@ io.on('connection', socket => {
 
   socket.on('selectCategory', cat => {
     if(state.screen !== 2) return;
-    if(socket.id !== state.adminId) return;
+    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
     if(!state.categories.includes(cat)) return;
     state.selectedCategory = cat;
     state.screen = 3;
@@ -108,14 +108,12 @@ io.on('connection', socket => {
 
   socket.on('selectPlayerToPlay', playerId => {
     if(state.screen !== 3) return;
-    if(socket.id !== state.adminId) return;
+    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
     if(!state.players[playerId]) return;
-    // only that player gets start button
     io.emit('playerToPlay', playerId);
   });
 
   socket.on('startTurn', () => {
-    // only the selected player can start
     const player = state.players[socket.id];
     if(!player) return;
     if(state.round && state.round.playerId) return;
@@ -170,7 +168,6 @@ io.on('connection', socket => {
 
   socket.on('disconnect', (reason) => {
     const wasAdmin = state.adminId === socket.id;
-    // remove player
     if(state.players[socket.id]){
       const team = state.players[socket.id].team;
       state.teams[team] = state.teams[team].filter(id => id !== socket.id);
@@ -207,7 +204,6 @@ function startRoundTimer(){
     const remaining = state.round.endTime - now;
     if(remaining <= 0){
       clearInterval(roundInterval); roundInterval = null;
-      // move to results screen
       state.screen = 5;
       io.emit('timeUp', { answered: state.round.answered, scores: state.scores });
       state.round = null;
