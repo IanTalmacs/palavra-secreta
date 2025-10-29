@@ -1,67 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Game</title>
-<link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+<title>Jogo Online</title>
 </head>
 <body>
-<div id="app">
-  <div id="screen-1" class="screen">
-    <div class="top">
-      <input id="nameInput" placeholder="nome" />
-      <button id="confirmBtn">confirmar</button>
-    </div>
-    <div class="lists">
-      <div class="list">
-        <h3>Lobby</h3>
-        <ul id="lobby" class="droplist"></ul>
-      </div>
-      <div class="list">
-        <h3>Equipe 1</h3>
-        <ul id="team1" class="droplist"></ul>
-      </div>
-      <div class="list">
-        <h3>Equipe 2</h3>
-        <ul id="team2" class="droplist"></ul>
-      </div>
-    </div>
-    <div class="bottom">
-      <button id="categoriesBtn">categorias</button>
-    </div>
-  </div>
-
-  <div id="screen-2" class="screen" hidden>
-    <div class="top scoreboard" id="scoreboard"></div>
-    <div class="categories" id="categories"></div>
-    <div class="bottom">
-      <button id="categoriesAdvance">avançar</button>
-    </div>
-  </div>
-
-  <div id="screen-3" class="screen" hidden>
-    <div class="top scoreboard" id="scoreboard3"></div>
-    <div class="teams-players" id="teamsPlayers"></div>
-  </div>
-
-  <div id="screen-4" class="screen" hidden>
-    <div class="top scoreboard" id="scoreboard4"></div>
-    <div id="turnArea" class="turn-area">
-      <div id="timerBig" class="timer">75</div>
-      <div id="wordArea" class="word-area"></div>
-      <div id="controls" class="controls"></div>
-    </div>
-  </div>
-
-  <div id="screen-5" class="screen" hidden>
-    <div class="top scoreboard" id="scoreboard5"></div>
-    <div id="answeredList" class="answered-list"></div>
-    <div class="bottom">
-      <button id="categoriesBtn2">categorias</button>
-    </div>
-  </div>
-</div>
+<div id="app"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="client.js"></script>
 </body>

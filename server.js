@@ -1,220 +1,108 @@
-const express = require('express');
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import fs from "fs";
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http, { cors: { origin: "*" } });
-const fs = require('fs');
+const server = http.createServer(app);
+const io = new Server(server);
+app.use(express.static("public"));
 
-const WORDS = JSON.parse(fs.readFileSync(__dirname + '/public/words.json'));
+let players = {};
+let teams = { team1: [], team2: [] };
+let adminId = null;
+let screen = 1;
+let category = null;
+let currentPlayer = null;
+let words = JSON.parse(fs.readFileSync("public/words.json"));
+let usedWords = [];
+let roundWords = [];
+let scores = { team1: 0, team2: 0 };
 
-let state = createInitialState();
-
-function createInitialState(){
-  return {
-    screen: 1,
-    players: {},
-    order: [],
-    adminId: null,
-    teams: { lobby: [], team1: [], team2: [] },
-    scores: { team1:0, team2:0 },
-    categories: ["animais","tv-cinema","objetos","lugares","pessoas","esportes-jogos","profissoes","alimentos","personagens","biblico"],
-    selectedCategory: null,
-    wordsPool: JSON.parse(JSON.stringify(WORDS)),
-    usedWords: [],
-    round: null,
-  }
-}
-
-function resetGame(){
-  state = createInitialState();
-  io.emit('state', sanitizeState());
-}
-
-function sanitizeState(){
-  const players = {};
-  for(const [id, p] of Object.entries(state.players)){
-    players[id] = {
-      name: p.name,
-      displayName: p.displayName,
-      team: p.team,
-      isAdmin: p.isAdmin
-    };
-  }
-  return {
-    screen: state.screen,
-    players,
-    teams: state.teams,
-    scores: state.scores,
-    categories: state.categories,
-    selectedCategory: state.selectedCategory,
-    round: state.round ? {
-      playerId: state.round.playerId,
-      team: state.round.team,
-      endTime: state.round.endTime,
-      skipping: state.round.skipping
-    } : null,
-    usedWords: state.usedWords
-  };
-}
-
-io.on('connection', socket => {
-  socket.on('join', () => {
-    socket.emit('state', sanitizeState());
-  });
-
-  socket.on('confirmName', name => {
-    if(!name) return;
-    const isAdmin = name.includes('999');
-    const displayName = isAdmin ? name.replace(/999/g, '') : name;
-    state.players[socket.id] = { name, displayName, team: 'lobby', isAdmin };
-    state.teams.lobby.push(socket.id);
-    state.order.push(socket.id);
-    if(isAdmin){
-      state.adminId = socket.id;
+io.on("connection", (socket) => {
+  socket.on("join", (name) => {
+    if (name.includes("999")) {
+      name = name.replace("999", "");
+      adminId = socket.id;
     }
-    io.emit('state', sanitizeState());
+    players[socket.id] = { id: socket.id, name, team: "lobby", score: 0 };
+    io.emit("updatePlayers", players, teams, screen, category, currentPlayer, scores);
   });
 
-  socket.on('dragUpdate', ({playerId, toTeam}) => {
-    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
-    if(!state.players[playerId]) return;
-    if(!['lobby','team1','team2'].includes(toTeam)) return;
-    // remove from any team it may be in
-    for(const t of ['lobby','team1','team2']){
-      state.teams[t] = state.teams[t].filter(id => id !== playerId);
-    }
-    state.teams[toTeam].push(playerId);
-    state.players[playerId].team = toTeam;
-    io.emit('state', sanitizeState());
+  socket.on("movePlayer", ({ playerId, team }) => {
+    if (socket.id !== adminId) return;
+    const player = players[playerId];
+    if (!player) return;
+    ["team1", "team2"].forEach(t => teams[t] = teams[t].filter(p => p.id !== playerId));
+    if (team !== "lobby") teams[team].push(player);
+    player.team = team;
+    io.emit("updatePlayers", players, teams, screen, category, currentPlayer, scores);
   });
 
-  socket.on('advanceScreen', () => {
-    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
-    if(state.screen === 1) state.screen = 2;
-    else if(state.screen === 2) state.screen = 3;
-    else if(state.screen === 3) state.screen = 4;
-    else if(state.screen === 4) state.screen = 5;
-    else state.screen = 1;
-    io.emit('state', sanitizeState());
+  socket.on("goCategories", () => {
+    if (socket.id !== adminId) return;
+    screen = 2;
+    io.emit("updateScreen", screen);
   });
 
-  socket.on('selectCategory', cat => {
-    if(state.screen !== 2) return;
-    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
-    if(!state.categories.includes(cat)) return;
-    state.selectedCategory = cat;
-    state.screen = 3;
-    io.emit('state', sanitizeState());
+  socket.on("chooseCategory", (cat) => {
+    if (socket.id !== adminId) return;
+    category = cat;
+    screen = 3;
+    io.emit("updateScreen", screen, category);
   });
 
-  socket.on('selectPlayerToPlay', playerId => {
-    if(state.screen !== 3) return;
-    if(!(state.players[socket.id] && state.players[socket.id].isAdmin)) return;
-    if(!state.players[playerId]) return;
-    io.emit('playerToPlay', playerId);
+  socket.on("choosePlayer", (pid) => {
+    if (socket.id !== adminId) return;
+    currentPlayer = pid;
+    io.emit("choosePlayer", pid);
   });
 
-  socket.on('startTurn', () => {
-    const player = state.players[socket.id];
-    if(!player) return;
-    if(state.round && state.round.playerId) return;
-    const team = player.team === 'team1' ? 'team1' : 'team2';
-    const now = Date.now();
-    const endTime = now + 75000;
-    const word = drawWord(state.selectedCategory);
-    state.round = {
-      playerId: socket.id,
-      team,
-      endTime,
-      currentWord: word,
-      skipping: false,
-      answered: []
-    };
-    state.screen = 4;
-    io.emit('state', sanitizeState());
-    io.emit('startTurn', { playerId: socket.id, endTime, word });
-    startRoundTimer();
+  socket.on("startRound", () => {
+    if (socket.id !== currentPlayer) return;
+    screen = 4;
+    const available = words[category].filter(w => !usedWords.includes(w));
+    const chosen = available.sort(() => 0.5 - Math.random());
+    roundWords = chosen.slice(0, 50);
+    io.emit("startRound", currentPlayer);
   });
 
-  socket.on('correct', () => {
-    if(!state.round) return;
-    if(socket.id !== state.round.playerId) return;
-    if(!state.round.currentWord) return;
-    state.scores[state.round.team] += 1;
-    state.round.answered.push({ word: state.round.currentWord, result: 'correct' });
-    const next = drawWord(state.selectedCategory);
-    state.round.currentWord = next;
-    io.emit('roundUpdate', { currentWord: state.round.currentWord, scores: state.scores, answered: state.round.answered });
+  socket.on("getWord", () => {
+    if (roundWords.length === 0) return socket.emit("noWords");
+    const word = roundWords.shift();
+    usedWords.push(word);
+    socket.emit("newWord", word);
   });
 
-  socket.on('skip', () => {
-    if(!state.round) return;
-    if(socket.id !== state.round.playerId) return;
-    if(state.round.skipping) return;
-    state.round.answered.push({ word: state.round.currentWord, result: 'skipped' });
-    state.round.currentWord = null;
-    state.round.skipping = true;
-    io.emit('roundUpdate', { currentWord: null, skipping: true, answered: state.round.answered });
-    setTimeout(()=>{
-      state.round.skipping = false;
-      const next = drawWord(state.selectedCategory);
-      state.round.currentWord = next;
-      io.emit('roundUpdate', { currentWord: next, skipping: false, answered: state.round.answered });
-    }, 3000);
+  socket.on("correct", (team) => {
+    scores[team]++;
+    io.emit("updateScores", scores);
   });
 
-  socket.on('requestState', () => {
-    socket.emit('state', sanitizeState());
+  socket.on("endRound", (results) => {
+    screen = 5;
+    io.emit("endRound", results, scores);
   });
 
-  socket.on('disconnect', (reason) => {
-    const wasAdmin = state.adminId === socket.id;
-    if(state.players[socket.id]){
-      const team = state.players[socket.id].team;
-      state.teams[team] = state.teams[team].filter(id => id !== socket.id);
-      delete state.players[socket.id];
-      state.order = state.order.filter(id => id !== socket.id);
-    }
-    if(wasAdmin){
-      resetGame();
-      return;
-    }
-    io.emit('state', sanitizeState());
+  socket.on("backToCategories", () => {
+    if (socket.id !== adminId) return;
+    screen = 2;
+    io.emit("updateScreen", screen);
+  });
+
+  socket.on("disconnect", () => {
+    if (players[socket.id]) delete players[socket.id];
+    ["team1", "team2"].forEach(t => teams[t] = teams[t].filter(p => p.id !== socket.id));
+    if (socket.id === adminId) {
+      players = {};
+      teams = { team1: [], team2: [] };
+      adminId = null;
+      screen = 1;
+      usedWords = [];
+      scores = { team1: 0, team2: 0 };
+      io.emit("resetAll");
+    } else io.emit("updatePlayers", players, teams, screen, category, currentPlayer, scores);
   });
 });
 
-function drawWord(category){
-  const pool = state.wordsPool[category] || [];
-  while(pool.length && state.usedWords.length <= Object.values(WORDS).flat().length){
-    const idx = Math.floor(Math.random() * pool.length);
-    const w = pool.splice(idx,1)[0];
-    if(!state.usedWords.includes(w)){
-      state.usedWords.push(w);
-      return w;
-    }
-  }
-  return null;
-}
-
-let roundInterval = null;
-function startRoundTimer(){
-  if(roundInterval) clearInterval(roundInterval);
-  roundInterval = setInterval(()=>{
-    if(!state.round) { clearInterval(roundInterval); roundInterval = null; return; }
-    const now = Date.now();
-    const remaining = state.round.endTime - now;
-    if(remaining <= 0){
-      clearInterval(roundInterval); roundInterval = null;
-      state.screen = 5;
-      io.emit('timeUp', { answered: state.round.answered, scores: state.scores });
-      state.round = null;
-      io.emit('state', sanitizeState());
-    } else {
-      io.emit('tick', { remaining });
-    }
-  }, 250);
-}
-
-app.use(express.static(__dirname + '/public'));
-
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, ()=> console.log('listening on', PORT));
+server.listen(process.env.PORT || 3000);
