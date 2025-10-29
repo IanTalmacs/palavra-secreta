@@ -1,159 +1,139 @@
-const socket = io()
-let me = {}, screen = 1, roundWords = [], skippedWords = [], countdown
-window.onbeforeunload = () => 'Tem certeza que quer sair?'
+const socket = io();
+const app = document.getElementById("app");
+let me = {};
+let wordsHit = [];
+let wordsSkipped = [];
+let timer;
 
-const app = document.getElementById('app')
+window.addEventListener("beforeunload", e => {
+  e.preventDefault();
+  e.returnValue = "";
+});
 
-function render() {
-  if (screen === 1) {
-    app.innerHTML = `
-      <h2>Escolha seu nome e equipe</h2>
-      <input id="name" placeholder="Nome" style="font-size:1.2rem;padding:10px">
-      <div>
-        <button onclick="join(1)">Equipe 1</button>
-        <button onclick="join(2)">Equipe 2</button>
-      </div>
-    `
-  }
-  if (screen === 2) {
-    app.innerHTML = `<div id="score">Equipe 1: ${me.scores?.team1 || 0} | Equipe 2: ${me.scores?.team2 || 0}</div><div id="cats"></div>`
-    if (me.isAdmin) {
-      socket.emit('getCategories')
-    }
-  }
-  if (screen === 3 && me.isAdmin) {
-    app.innerHTML = `<h2>Jogadores</h2><div id="players"></div>`
-    renderPlayers()
-  }
+function screen1() {
+  app.innerHTML = `
+    <h1>Jogo Categorias</h1>
+    <input id="name" placeholder="Seu nome" style="padding:10px;font-size:1.2em;width:80%"><br>
+    <button onclick="join(1)">Equipe 1</button>
+    <button onclick="join(2)">Equipe 2</button>
+  `;
 }
 
 function join(team) {
-  const name = document.getElementById('name').value
-  if (!name) return
-  socket.emit('join', { name, team })
-  me.team = 'team' + team
-  screen = 2
-  render()
+  const name = document.getElementById("name").value;
+  if (!name) return;
+  me.name = name;
+  me.team = team;
+  socket.emit("join", name, team);
+  screen2();
 }
 
-socket.on('players', players => {
-  me.players = players
-  renderPlayers()
-})
+function screen2() {
+  app.innerHTML = `
+    <h2 id="score">Placar</h2>
+    <div class="category">
+      ${["animais","tv e cinema","objetos","lugares","pessoas","esportes e jogos","profissões","alimentos","personagens","bíblico"].map(c => `<button onclick="chooseCategory('${c}')">${c}</button>`).join("")}
+    </div>
+  `;
+}
 
-function renderPlayers() {
-  if (!me.isAdmin) return
-  const div = document.getElementById('players')
-  if (!div) return
-  div.innerHTML = ''
-  Object.entries(me.players).forEach(([id, p]) => {
-    div.innerHTML += `<button class="player-btn" onclick="choosePlayer('${id}')">${p.name}</button>`
-  })
+function chooseCategory(cat) {
+  socket.emit("chooseCategory", cat);
+}
+
+function screen3(players) {
+  app.innerHTML = `<h2>Escolha um jogador</h2>`;
+  players.forEach(p => {
+    app.innerHTML += `<button onclick="choosePlayer('${p.id}')">${p.name}</button>`;
+  });
 }
 
 function choosePlayer(id) {
-  socket.emit('choosePlayer', id)
+  socket.emit("choosePlayer", id);
 }
 
-socket.on('categories', cats => {
-  const div = document.getElementById('cats')
-  cats.forEach(c => {
-    div.innerHTML += `<button class="category" onclick="chooseCategory('${c}')">${c}</button>`
-  })
-})
-
-function chooseCategory(cat) {
-  socket.emit('chooseCategory', cat)
-  screen = 3
-  render()
+function screen4a() {
+  app.innerHTML = `<h2 id="time">75</h2><div class="word" id="word"></div>
+    <button class="green" onclick="correct()">Acertou</button>
+    <button class="red" onclick="skip()">Pular</button>`;
+  wordsHit = [];
+  wordsSkipped = [];
+  countdown(75);
+  socket.emit("getWord");
 }
 
-socket.on('categoryChosen', cat => {
-  if (!me.isAdmin) screen = 3
-  render()
-})
-
-socket.on('playerChosen', id => {
-  if (id === socket.id) {
-    app.innerHTML = `<button onclick="startRound()">Iniciar</button>`
-  }
-})
-
-function startRound() {
-  socket.emit('startRound')
+function screen4b() {
+  app.innerHTML = `<h2 id="time">75</h2>`;
+  countdown(75);
 }
 
-socket.on('roundStarted', id => {
-  if (id === socket.id) startPlayerRound()
-  else startSpectatorRound()
-})
+function screen5(results) {
+  app.innerHTML = `
+    <h2>Resultado</h2>
+    ${results.hits.map(w => `<div class="green">${w}</div>`).join("")}
+    ${results.skips.map(w => `<div class="red">${w}</div>`).join("")}
+    <button onclick="screen2()">Categorias</button>
+  `;
+}
 
-function startPlayerRound() {
-  screen = 4
-  roundWords = []
-  skippedWords = []
-  let time = 75
-  app.innerHTML = `<div id="timer">${time}</div><div id="word" class="word"></div><button class="green" id="correct">Acertou</button><button class="red" id="skip">Pular</button>`
-  socket.emit('getWord')
-  countdown = setInterval(() => {
-    time--
-    document.getElementById('timer').innerText = time
-    if (time <= 0) {
-      clearInterval(countdown)
-      socket.emit('endRound')
+function countdown(sec) {
+  const t = document.getElementById("time");
+  clearInterval(timer);
+  timer = setInterval(() => {
+    sec--;
+    if (t) t.textContent = sec;
+    if (sec <= 0) {
+      clearInterval(timer);
+      if (me.id === currentPlayer) {
+        socket.emit("endRound", { hits: wordsHit, skips: wordsSkipped });
+      }
     }
-  }, 1000)
-  document.getElementById('correct').onclick = () => {
-    roundWords.push(document.getElementById('word').innerText)
-    socket.emit('correct', me.team)
-    socket.emit('getWord')
-  }
-  document.getElementById('skip').onclick = () => {
-    const w = document.getElementById('word').innerText
-    skippedWords.push(w)
-    document.getElementById('word').innerText = 'Pulando...'
-    setTimeout(() => socket.emit('getWord'), 3000)
-  }
+  }, 1000);
 }
 
-socket.on('newWord', word => {
-  const w = document.getElementById('word')
-  if (w) w.innerText = word
-})
-
-function startSpectatorRound() {
-  screen = 4
-  let time = 75
-  app.innerHTML = `<div id="timer">${time}</div>`
-  countdown = setInterval(() => {
-    time--
-    document.getElementById('timer').innerText = time
-    if (time <= 0) clearInterval(countdown)
-  }, 1000)
+function correct() {
+  const w = document.getElementById("word").textContent;
+  wordsHit.push(w);
+  socket.emit("correct");
 }
 
-socket.on('updateScore', s => {
-  me.scores = s
-})
-
-socket.on('roundEnded', () => {
-  clearInterval(countdown)
-  screen = 5
-  app.innerHTML = `<h2>Resultados</h2>`
-  roundWords.forEach(w => app.innerHTML += `<div class="green">${w}</div>`)
-  skippedWords.forEach(w => app.innerHTML += `<div class="red">${w}</div>`)
-  if (me.isAdmin) app.innerHTML += `<button onclick="goCategories()">Categorias</button>`
-})
-
-function goCategories() {
-  screen = 2
-  render()
+function skip() {
+  const w = document.getElementById("word").textContent;
+  wordsSkipped.push(w);
+  document.getElementById("word").textContent = "Pulando...";
+  socket.emit("skip");
 }
 
-socket.on('resetAll', () => {
-  screen = 1
-  me = {}
-  render()
-})
+socket.on("players", (players, points) => {
+  me.id = socket.id;
+  if (players.find(p => p.id === me.id)?.isAdmin) screen3(players);
+});
 
-render()
+socket.on("categoryChosen", () => screen3([]));
+socket.on("playerChosen", id => {
+  if (me.id === id) app.innerHTML = `<button onclick="socket.emit('startRound')">Iniciar</button>`;
+});
+socket.on("startRound", id => {
+  if (me.id === id) screen4a();
+  else screen4b();
+});
+socket.on("newWord", w => {
+  const el = document.getElementById("word");
+  if (el) el.textContent = w;
+});
+socket.on("skipping", () => {
+  const el = document.getElementById("word");
+  if (el) el.textContent = "Pulando...";
+});
+socket.on("updatePoints", pts => {
+  const s = document.getElementById("score");
+  if (s) s.textContent = `Equipe 1: ${pts[1]} | Equipe 2: ${pts[2]}`;
+});
+socket.on("endRound", (results, pts) => {
+  screen5(results);
+  const s = document.getElementById("score");
+  if (s) s.textContent = `Equipe 1: ${pts[1]} | Equipe 2: ${pts[2]}`;
+});
+socket.on("resetAll", () => screen1());
+
+screen1();

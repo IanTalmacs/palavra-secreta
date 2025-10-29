@@ -1,85 +1,96 @@
-const express = require('express')
-const app = express()
-const http = require('http').createServer(app)
-const io = require('socket.io')(http)
-const fs = require('fs')
+import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import fs from "fs";
 
-app.use(express.static('public'))
+const app = express();
+const server = createServer(app);
+const io = new Server(server);
 
-let players = {}
-let words = {}
-let usedWords = new Set()
-let currentCategory = null
-let currentPlayer = null
-let scores = { team1: 0, team2: 0 }
+app.use(express.static("public"));
 
-function loadWords() {
-  words = JSON.parse(fs.readFileSync('public/words.json'))
-}
-loadWords()
+let players = [];
+let admin = null;
+let teamPoints = { 1: 0, 2: 0 };
+let usedWords = [];
+let currentCategory = null;
+let currentPlayer = null;
+let currentWord = null;
+let words = JSON.parse(fs.readFileSync("./public/words.json"));
+let gameActive = false;
 
-io.on('connection', socket => {
-  socket.on('join', ({ name, team }) => {
-    const isAdmin = name.includes('995')
-    const displayName = name.replace('995', '')
-    players[socket.id] = { name: displayName, team, isAdmin, screen: 1 }
-    io.emit('players', players)
-  })
+io.on("connection", (socket) => {
+  socket.on("join", (name, team) => {
+    const isAdmin = name.includes("995");
+    const visibleName = name.replace("995", "");
+    const player = { id: socket.id, name: visibleName, team, isAdmin };
+    players.push(player);
+    if (isAdmin) admin = socket.id;
+    io.emit("players", players, teamPoints);
+  });
 
-  socket.on('getCategories', () => {
-    socket.emit('categories', Object.keys(words))
-  })
+  socket.on("chooseCategory", (cat) => {
+    if (socket.id !== admin) return;
+    currentCategory = cat;
+    io.emit("categoryChosen", cat);
+  });
 
-  socket.on('chooseCategory', cat => {
-    currentCategory = cat
-    io.emit('categoryChosen', cat)
-  })
+  socket.on("choosePlayer", (id) => {
+    if (socket.id !== admin) return;
+    currentPlayer = id;
+    io.emit("playerChosen", id);
+  });
 
-  socket.on('choosePlayer', id => {
-    currentPlayer = id
-    io.emit('playerChosen', id)
-  })
+  socket.on("startRound", () => {
+    if (socket.id !== currentPlayer) return;
+    gameActive = true;
+    usedWords = [];
+    io.emit("startRound", currentPlayer);
+  });
 
-  socket.on('startRound', () => {
-    if (!currentCategory) return
-    usedWords.clear()
-    io.emit('roundStarted', currentPlayer)
-  })
+  socket.on("getWord", () => {
+    if (!currentCategory) return;
+    let list = words[currentCategory].filter(w => !usedWords.includes(w));
+    if (list.length === 0) return socket.emit("noWords");
+    currentWord = list[Math.floor(Math.random() * list.length)];
+    usedWords.push(currentWord);
+    socket.emit("newWord", currentWord);
+  });
 
-  socket.on('getWord', () => {
-    const available = words[currentCategory].filter(w => !usedWords.has(w))
-    if (available.length === 0) {
-      socket.emit('noWords')
-      return
+  socket.on("correct", () => {
+    const player = players.find(p => p.id === currentPlayer);
+    if (!player) return;
+    teamPoints[player.team]++;
+    io.emit("updatePoints", teamPoints);
+    socket.emit("getWord");
+  });
+
+  socket.on("skip", () => {
+    socket.emit("skipping");
+    setTimeout(() => socket.emit("getWord"), 3000);
+  });
+
+  socket.on("endRound", (results) => {
+    gameActive = false;
+    io.emit("endRound", results, teamPoints);
+    currentPlayer = null;
+    currentWord = null;
+  });
+
+  socket.on("disconnect", () => {
+    players = players.filter(p => p.id !== socket.id);
+    if (socket.id === admin) {
+      players = [];
+      admin = null;
+      teamPoints = { 1: 0, 2: 0 };
+      usedWords = [];
+      currentCategory = null;
+      currentPlayer = null;
+      io.emit("resetAll");
+    } else {
+      io.emit("players", players, teamPoints);
     }
-    const word = available[Math.floor(Math.random() * available.length)]
-    usedWords.add(word)
-    socket.emit('newWord', word)
-  })
+  });
+});
 
-  socket.on('correct', team => {
-    scores[team]++
-    io.emit('updateScore', scores)
-  })
-
-  socket.on('endRound', () => {
-    io.emit('roundEnded')
-    currentPlayer = null
-  })
-
-  socket.on('resetGame', () => {
-    usedWords.clear()
-    scores = { team1: 0, team2: 0 }
-    currentPlayer = null
-    currentCategory = null
-    players = {}
-    io.emit('resetAll')
-  })
-
-  socket.on('disconnect', () => {
-    delete players[socket.id]
-    io.emit('players', players)
-  })
-})
-
-http.listen(process.env.PORT || 3000)
+server.listen(3000, () => console.log("Servidor rodando na porta 3000"));
