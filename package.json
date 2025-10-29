@@ -1,7 +1,6 @@
 {
-  "name": "realtime-wordgame",
+  "name": "party-game",
   "version": "1.0.0",
-  "description": "Jogo browser realtime com Node + Socket.IO (estrutura para Railway)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

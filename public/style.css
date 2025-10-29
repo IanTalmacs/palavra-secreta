@@ -1,225 +1,31 @@
-/* style.css - clean mobile design inspired by spotify */
-:root{
-  --bg:#0f1417;
-  --card:#121618;
-  --muted:#9aa5a8;
-  --accent:#1db954;
-  --danger:#e74c3c;
-  --good:#2ecc71;
-  --surface:#0b0f10;
-  --glass: rgba(255,255,255,0.03);
-  --radius:16px;
-}
-
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
-body{background:linear-gradient(180deg,#071014 0%, #0d1416 100%); color:#fff; -webkit-font-smoothing:antialiased;}
-
-.container{
-  max-width:680px;
-  margin:12px auto;
-  padding:16px;
-}
-
-/* card like area */
-.screen {
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-  border-radius:var(--radius);
-  padding:18px;
-  min-height:70vh;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-
-/* big inputs/buttons */
-.input{
-  width:100%;
-  font-size:20px;
-  padding:14px 16px;
-  border-radius:12px;
-  border:0;
-  background:var(--glass);
-  color:#fff;
-  outline:none;
-}
-
-.btn {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:14px 18px;
-  font-size:18px;
-  border-radius:12px;
-  border:0;
-  cursor:pointer;
-  background:var(--accent);
-  color:#01210a;
-  min-height:56px;
-  width:100%;
-  font-weight:600;
-  letter-spacing:0.2px;
-}
-
-.btn.secondary{
-  background:transparent;
-  border:1px solid rgba(255,255,255,0.06);
-  color:var(--muted);
-}
-
-.btn.danger{
-  background:var(--danger);
-  color:#fff;
-}
-
-.header-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-}
-
-.row { display:flex; gap:8px; align-items:center; }
-
-.title {
-  font-size:22px;
-  font-weight:700;
-}
-
-.small { font-size:13px; color:var(--muted); }
-
-.flex { flex:1; }
-
-.panel {
-  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
-  border-radius:12px;
-  padding:10px;
-}
-
-.teams {
-  display:flex;
-  gap:8px;
-  flex-direction:row;
-  justify-content:space-between;
-}
-
-.team-card{
-  flex:1;
-  min-height:140px;
-  padding:8px;
-  border-radius:12px;
-  background:rgba(255,255,255,0.02);
-}
-
-.player-item{
-  padding:10px;
-  margin-bottom:8px;
-  border-radius:10px;
-  background: rgba(0,0,0,0.2);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:16px;
-  cursor:grab;
-}
-
-.player-item.admin{
-  outline:2px solid rgba(29,185,84,0.12);
-}
-
-.category-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
-}
-
-.category{
-  padding:14px;
-  border-radius:10px;
-  background:rgba(255,255,255,0.02);
-  text-align:center;
-  font-weight:600;
-  font-size:16px;
-  cursor:pointer;
-  min-height:56px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.timer{
-  font-size:48px;
-  text-align:center;
-  font-weight:800;
-  letter-spacing:1px;
-}
-
-.word{
-  font-size:36px;
-  text-align:center;
-  font-weight:800;
-  margin-top:12px;
-}
-
-.big-actions {
-  display:flex;
-  gap:14px;
-}
-
-.circle-btn{
-  width:92px;
-  height:92px;
-  border-radius:50%;
-  border:0;
-  font-size:18px;
-  font-weight:700;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.circle-btn.green{
-  background:var(--good);
-  color:#00320a;
-}
-
-.circle-btn.red{
-  background:var(--danger);
-  color:#fff;
-}
-
-.center {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-}
-
-.small-note { font-size:12px; color:var(--muted); text-align:center; }
-
-.words-list {
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
-.word-entry {
-  padding:8px 10px;
-  border-radius:8px;
-  background:rgba(255,255,255,0.02);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-weight:600;
-}
-
-.word-entry.guessed { color: var(--good); }
-.word-entry.skipped { color: var(--danger); }
-
-.footer {
-  margin-top:auto;
-  display:flex;
-  gap:8px;
-}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
+:root{--bg:#121212;--accent:#1db954;--muted:#b3b3b3;--card:#181818;--danger:#e63946;}
+html,body,#app{height:100%;}
+body{background:linear-gradient(180deg,#0f0f0f,#121212);color:#fff;padding:16px;}
+.screen{display:flex;flex-direction:column;gap:12px;height:100%;}
+.top{display:flex;gap:8px;align-items:center;}
+.top input{flex:1;padding:14px;border-radius:999px;border:none;background:#222;color:#fff;font-size:18px;}
+.top button{padding:12px 18px;border-radius:999px;border:none;background:var(--accent);font-weight:700;font-size:16px;}
+.lists{display:flex;gap:8px;flex:1;overflow:auto;padding-top:8px;}
+.list{flex:1;background:var(--card);padding:10px;border-radius:14px;min-height:120px;}
+.list h3{font-size:18px;margin-bottom:8px;color:var(--muted);}
+.droplist{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.player{padding:10px 12px;border-radius:10px;background:#0f0f0f;border:1px solid rgba(255,255,255,0.04);font-size:18px;touch-action:none;}
+.bottom{display:flex;justify-content:center;padding:8px;}
+#categoriesBtn,#categoriesAdvance,#categoriesBtn2{padding:12px 20px;border-radius:999px;background:var(--accent);border:none;font-weight:700;font-size:18px;}
+.scoreboard{display:flex;gap:12px;align-items:center;justify-content:center;padding:12px;border-radius:12px;background:var(--card);font-size:18px;}
+.categories{display:flex;flex-wrap:wrap;gap:8px;padding:8px;justify-content:center;}
+.category{padding:12px 14px;border-radius:12px;background:#0f0f0f;border:1px solid rgba(255,255,255,0.04);font-size:16px;min-width:120px;text-align:center;}
+.teams-players{display:flex;flex-direction:column;gap:10px;padding:8px;overflow:auto;}
+.team-block{background:var(--card);padding:8px;border-radius:12px;}
+.turn-area{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;flex:1;}
+.timer{font-size:48px;font-weight:800;background:rgba(255,255,255,0.03);padding:18px 28px;border-radius:18px;}
+.word-area{font-size:28px;font-weight:700;min-height:56px;display:flex;align-items:center;justify-content:center;}
+.controls{display:flex;gap:16px;margin-top:8px;}
+.circle{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;border:none;}
+.green{background:var(--accent);}
+.red{background:var(--danger);}
+.answered-list{display:flex;flex-direction:column;gap:8px;padding:8px;overflow:auto;}
+.answered-item{padding:10px;border-radius:8px;background:#0f0f0f;font-size:18px;}
+.answered-item.correct{border-left:6px solid var(--accent);}
+.answered-item.skipped{border-left:6px solid var(--danger);}
