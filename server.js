@@ -1,304 +1,283 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server);
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-const DEFAULT_CATEGORIES = [
-  'animais','tv e cinema','objetos','lugares','pessoas','esportes e jogos','profissões','alimentos','personagens','bíblico'
-];
+// Load words from file
+const WORDS_PATH = path.join(__dirname, 'public', 'words.json');
+function loadWords() {
+  const raw = fs.readFileSync(WORDS_PATH, 'utf8');
+  return JSON.parse(raw);
+}
 
-// palavras exemplo por categoria (adicione/edite conforme quiser)
-const WORDS = {
-  "animais": ["girafa", "panda", "leão", "tigre", "porco", "cachorro", "vaca", "gato", "ovelha", "pato", "coelho", "zebra", "águia", "abelha", "baleia", "camaleão", "camelo", "elefante", "foca", "golfinho", "hipopótamo", "hiena", "jacaré", "lagarto", "macaco", "cobra", "papagaio", "raposa", "rato", "tartaruga", "urso polar", "urubu", "veado", "aranha", "arara", "avestruz", "barata", "beija-flor", "bezerro", "bode", "boi", "borboleta", "jumento", "cabra", "camarão", "dromedário", "canguru", "capivara", "caracol", "caranguejo", "carrapato", "pulga", "cavalo", "cavalo-marinho", "cegonha", "cigarra", "cisne", "codorna", "coruja", "crocodilo", "dinossauro", "escorpião", "esquilo", "estrela-do-mar", "falcão", "formiga", "gafanhoto", "gaivota", "galinha", "galo", "gambá", "ganso", "garça", "gavião", "gorila", "grilo", "iguana", "javali", "joaninha", "lagarta", "lagartixa", "lagosta", "leopardo", "lesma", "lhama", "lobo", "lula", "mamute", "mariposa", "marmota", "minhoca", "morcego", "mosca", "mosquito", "mula", "onça", "ostra", "pantera", "pardal", "pavão", "periquito", "pernilongo", "sapo", "peru", "pica-pau", "pinguim", "piolho", "piranha", "polvo", "pombo", "pônei", "porco-espinho", "bicho preguiça", "rã", "raia", "rinoceronte", "salmão", "sanguessuga", "sardinha", "siri", "tamanduá", "tatu", "toupera", "touro", "tubarão", "tucano", "urso", "vaga-lume", "vespa", "andorinha", "coiote", "castor", "ganso", "peixe-espada", "aedes aegypti", "boto", "calango", "furão", "ouriço", "anaconda", "besouro", "carneiro", "jegue", "libélula", "marimbondo", "orangotango", "chipanzé", "naja", "ornitorrinco", "peixe", "quati", "sagui", "serpente", "pitbul", "poodle", "rottweiler", "anta", "búfalo", "camundongo", "canário", "centopeia", "coala", "corvo", "penguin", "abutre", "ácaro", "alce", "antílope", "canário", "cupim", "égua", "ema", "faisão", "hamster", "guaxinim", "jabuti", "jaguar", "jamanta", "lebre", "lombriga", "lontra", "marreco", "mico", "morsa", "pelicano", "perereca", "rena", "preá", "sabiá", "salamandra", "suricate", "pitbul", "labrador", "poodle", "rottweiler", "bisão", "enguia", "puma", "louva-deus"],
-  
-  
-  "tv e cinema": ["Programa do Sílvio Santos", "Domingão do Faustão", "Fantástico", "Jornal Nacional", "A Praça é Nossa", "MasterChef", "Big Brother Brasil", "Esporte Espetacular", "Globo Esporte", "Star Wars", "Avatar", "Pantera Cor-de-Rosa", "Minions", "Simpsons", "A Era do Gelo", "A Vida é Bela", "As Branquelas", "Piratas do Caribe", "Argo", "A Culpa é das Estrelas", "Procurando Nemo", "Senhor dos Aneis", "Carga Explosiva", "Crepúsculo", "Como se Fosse a Primeira Vez", "Transformers", "Como treinar seu Dragão", "Meu Malvado Favorito", "Jumanji", "Ghost: do Outro Lado da Vida", "Herbie", "Monstros SA", "Inspetor Bugiganga", "Marley e Eu", "Missão Impossível", "007", "Titanic", "De Volta Para o Futuro", "Vingadores", "Quem Quer Ser um Milionário", "Jurassic Park", "Toy Story", "O Rei Leão", "Up - Altas Aventuras", "Velozes e Furiosos", "Rambo", "O Exterminador do Futuro", "Duro de Matar", "Matrix", "Poderoso Chefão", "Fronzen", "11 Homens e Um Segredo", "Gladiador", "Alice no País das Maravilhas", "O Mágico de Oz", "E o Vento Levou", "Casablanca", "Psicose", "Loucademia de Polícia", "Apertem os cintos, o Piloto Sumiu", "Forrest Gump", "ET", "Tubarão", "Divertidamente", "A Origem", "Independence Day", "O Código da Vinci", "Família Adams", "MIB", "Interestelar", "Nasce Uma Estrela", "Planeta dos Macacos", "Liga da Justiça", "Ratatouille", "Mamma Mia", "Madagascar", "Mad Max", "X-Men", "Ted", "Jogos Vorazes", "Quarteto Fantástico", "Tartarugas Ninjas", "Se Beber Não Case", "Friends", "Tropa de Elite", "Cidade de Deus", "Cavaleiros do Zodíaco", "Alien", "Edward Mãos de Tesoura", "Bourne", "Náufrago", "Prenda-me se For Capaz", "Os Trapalhões", "Bourne", "Show do Milhão", "A Bela e a Fera", "Ace Ventura", "A Grnade Família", "Sai de Baixo", "Karatê Kid", "La Casa de Papel", "101 Dálmatas", "Esqueceram de Mim", "Frozen", "O Chamado", "Todo Mundo em Pânico", "A Noviça Rebelde", "Uma Mente Brilhante", "A Volta ao Mundo em 80 Dias", "O Terminal", "Gente Grande", "Debi e Lóide", "Diamante de Sangue", "Entrando Numa Fria", "À Procura da Felicidade", "Angry Birds", "Kung Fu Panda", "Formiguinhas", "Vida de Inseto", "O Corcunda de Notre Dame", "Todo Poderoso", "A Fantástica Fábrica de Chocolate", "Top Gun", "Stranger Things", "Breaking Bad", "CSI", "Todo Mundo Odeia o Chris", "Nos Embalos de Sábado a Noite", "Tomb Raider", "Corrida Maluca", "Os Flintstones", "Os Três Mosqueteiros", "Dr. Dolittle", "Mudança de Hábito", "A Invenção de Hugo Cabret", "A Fuga das Galinhas", "Os Infiltrados", "A Lagoa Azul", "2001 Uma Odisséia no Espaço", "A Lista de Schindler", "Sempre ao seu Lado", "O Cavaleiro das Trevas", "Spotlight - Segredos Revelados", "Guerra ao Terror", "Lawrence da Arábia", "O Silêncio dos Inocentes", "Um Estanho no Ninho", "Amadeus", "O Discurso do Rei", "Onde os Fracos Não Tem Vez", "Manina de Ouro", "Rain Man", "Ben-Hur", "Chicago", "O Paciente Ingles", "Dança com Lobos", "Coração Valente", "Capitão Philips", "Anjos e Demônios", "Sully", "O Resgate do Soldado Ryan", "À Espera de um Milagre", "O Regresso", "Era uma vez em Hollywood", "Ilha do Medo", "Django livre", "O Aviador", "O Livro de Eli", "O Irlandês", "Eu sou a Lenda", "Eu Robô", "Detona Ralph", "Hancock", "Bad Boys", "Antes de Partir", "Um Sonho de Liberdade", "Invasão à Casa Branca", "Um Truque de Mestre", "O Último Samurai", "Top Gun", "Point Break - Caçadores de Emoção", "Velocidade Máxima", "Oblivion", "Game of Thrones", "Black Mirror", "Lost", "South Park", "Globo", "SBT", "Disney"],
-  
-  
-  "objetos": ["faca", "garfo", "colher", "prato", "geladeira", "fogão", "torneira", "panela", "caixa", "lâmpada", "bujão de gás", "detergente", "tomada", "janela", "porta", "abajur", "agulha", "alfinete", "algema", "alicate", "almofada", "âncora", "anel", "antena", "anzol", "apito", "apontador", "arco", "aspirador", "bacia", "balança", "banco", "bengala", "berço", "bicicleta", "bigorna", "bonóculo", "bóia", "bisturi", "bola", "boneca", "borracha", "botão", "brinco", "bule", "bumerangue", "cabide", "cadeado", "cadeira", "caderno", "cálice", "caneta", "canivete", "capacete", "celular", "chicote", "chinelo", "chupeta", "colchão", "copo", "dado", "dardo", "dentadura", "desentupidor", "desodorante", "despertador", "diamante", "dicionário", "dinamite", "disco", "elástico", "envelope", "enxada", "escada", "escova", "escudo", "espada", "espelho", "esponja", "estátua", "extintor", "ferradura", "fita adesiva", "flauta", "flecha", "foice", "folha", "frasco", "funil", "gaiola", "gancho", "garrafa", "gaveta", "gravata", "guarda-chuva", "guarda-sol", "guilhotina", "guitarra", "helicóptero", "ímã", "impressora", "ioiô", "isqueiro", "jaqueta", "jornal", "lanterna", "lápis", "lata", "leque", "liquidificador", "livro", "luneta", "luva", "maçaneta", "maçarico", "machado", "maiô", "mala", "mamadeira", "manequim", "mangueira", "marreta", "martelo", "máscara", "meia", "microfone", "microscópio", "mochila", "mola", "notebook", "óculos", "pandeiro", "parafuso", "paraquedas", "piano", "picareta", "pincel", "pingente", "pistola", "placa", "pulseira", "quadro", "lousa", "rádio", "raquete", "ratoeira", "rede", "régua", "relógio", "remo", "retrovisor", "revista", "revolver", "rodo", "rolha", "sabonete", "sacola", "sanfona", "saxofone", "secador", "seringa", "serrote", "sino", "sirene", "skate", "sofá", "spray", "tábua", "tabuleiro", "taça", "tamanco", "tambor", "tampa", "teclado", "telefone", "televisão", "telha", "tênis", "termômetro", "tesoura", "tigela", "tijolo", "touca", "trampolim", "travesseiro", "vara", "vaso", "vassoura", "vela", "ventilador", "violão", "violino", "volante", "shampoo", "zíper", "giz", "boné", "cola", "pneu", "saia", "batom", "bolsa", "bomba", "buquê", "flor", "canoa", "carta", "chave", "cofre", "corda", "foice", "moeda", "motor", "pedal", "pente", "prego", "radar", "paletó", "agenda", "alarme", "buzina", "cabide", "canudo", "chapéu", "espeto", "hélice", "lâmina", "míssil", "patins", "peruca", "pijama", "sapato", "tapete", "xícara", "aquário", "armário", "bateria", "cadarço", "carimbo", "cartola", "charuto", "chupeta", "coleira", "cortina", "esmalte", "fusível", "lixeira", "monitor", "peneira", "perfume", "prancha", "bandeira", "caminhão", "carteira", "chuveiro", "panfleto", "pen drive", "farol", "fio dental", "furadeira", "câmera", "guindaste", "computador", "frigideira", "micro-ondas", "cinto", "toalha", "churrasqueira", "saleiro", "DVD", "CD", "divã", "estojo", "boia", "baú", "pipa", "roda", "urna", "adaga", "álbum", "balão", "arpão", "balde", "balsa", "broca", "bucha", "cesta", "gaita", "pinça", "papel", "colar", "jarra", "rédea", "terno", "tumba", "varal", "trono", "barril", "bastão", "bazuca", "broche", "caixão", "cajado", "caneca", "crachá", "cômoda", "concha", "cutelo", "fivela", "colete", "fronha", "grelha", "guidão", "lençol", "lustre", "muleta", "pacote", "pérola", "peteca", "pomada", "rodapé", "tanque", "tatame", "tobogã", "webcam", "bota", "cabo", "cama", "cano", "capa", "cera", "cruz", "gibi", "iate", "laço", "lona", "lupa", "pote", "tela", "blusa", "calça", "mouse", "controle", "pires", "sunga", "avião", "biquini", "poste", "ar condicionado", "cocar", "pregador de roupa", "grampeador", "piscina", "fogos de artifício", "bússola", "videogame", "assadeira", "algodão", "aspirina", "árvore de natal", "montanha russa", "prata", "ouro", "rubi", "esmeralda", "muro", "fusca", "elevador", "filtro", "coador", "sandália", "chaveiro", "pinico", "diário", "harpa", "navalha", "kimono", "walkman", "carroça", "boleto", "cortador de unha", "papel higiênico", "fita cassete"],
-  "lugares": ["Acre", "Amapá", "Amazonas", "Pará", "Rondônia", "Roraima", "Manaus", "Belém", "Tocantins", "Alagoas", "Maceió", "Bahia", "Salvador", "Ceará", "Fortaleza", "Maranhão", "Paraíba", "Pernambuco", "Recife", "Piauí", "Teresina", "Rio Grande do Norte", "Natal", "Sergipe", "Aracajú", "Goiás", "Goiânia", "Mato Grosso", "Cuiabá", "Mato Grosso do Sul", "Campo Grande", "Brasília", "Espírito Santo", "Vitória", "Minas Gerais", "Belo Horizonte", "São Paulo", "Rio de Janeiro", "Paraná", "Curitiba", "Rio Grande do Sul", "Porto Alegre", "Santa Catarina", "Florianópolis", "Brasil", "Argentina", "Buenos Aires", "Bolívia", "Chile", "Colômbia", "Equador", "Paraguai", "Peru", "Uruguai", "Venezuela", "México", "Estados Unidos", "Canadá", "Nova York", "Alemanha", "Berlim", "Bélgica", "Croácia", "Dinamarca", "Escócia", "Espanha", "Madri", "França", "Paris", "Grécia", "Atenas", "Inglaterra", "Londres", "Itália", "Roma", "Noruega", "Portugal", "Lisboa", "Russia", "Turquia", "Moscou", "Holanda", "Amsterdã", "África do Sul", "Angola", "Egito", "Etiópia", "Madagascar", "Marrocos", "China", "Pequim", "Japão", "Tóquio", "Coreia do Sul", "Índia", "Cingapura", "Vietnã", "Afeganistão", "Arábia Saudita", "Emirados Árabes Unidos", "Dubai", "Iraque", "Israel", "Líbano", "Síria", "Australia", "Nova Zelândia", "Panamá", "Cuba", "Alasca", "Machu Pichu", "Veneza", "Los Angeles", "Las Vegas", "Hollywood", "Barcelona", "Miami", "Roma", "Hong Kong", "Jamaica", "Groelândia", "Chernobyl", "Suiça", "Polônia", "Hungria", "Irã", "Costa Rica", "Tailândia", "Nigéria", "Haiti", "Viena", "Chicago", "Guarulhos", "Havana", "Fernando de Noronha", "Foz do Iguaçu", "Everest", "Copacabana", "restaurante", "escola", "igreja", "Maracanã", "Posto de Gasolina", "hospital", "delegacia", "hotel", "Flórida", "fazenda", "25 de Março", "Brás", "praia", "rodoviária", "aeroporto", "estação de trem", "ginásio", "academia", "estádio", "lua", "marte", "saturno", "muralha da China", "polo norte", "antártida", "hospício", "asilo", "Olinda", "Oceano Pacífico", "Oceano Atlântico", "Quênia", "Mongólia", "vênus", "Rio São Francisco", "Pantanal", "Mar Mediterrâneo", "pentágono", "Disneylândia", "Taj Mahal", "Torre Eiffel", "cinema", "shopping", "zoológico", "Orlando", "caverna", "pirâmides do Egito", "Estátua da Liberdade", "Cristo Redentor", "Budapeste", "Eslováquia", "Qatar", "Bulgária", "Bahamas", "Malásia", "Ucrânia", "Senegal", "Sudão", "Congo", "Moçambique", "Calcutá", "Bangkok", "Cairo", "Xangai", "Seul", "Istambul", "Bogotá", "Varsóvia", "Munique", "Copenhagen", "Estocolmo", "Dublin", "Frankfurt", "Sevilha", "Minsk", "Bruxelas", "Lima", "Santiago", "Houston", "Nepal", "cemitério", "banheiro", "oficina", "açougue", "biblioteca", "circo", "coliseu", "Disneylândia", "farmácia"],
-  
-  
-  "pessoas": ["Angelina Jolie", "Amy Whinehouse", "Adele", "Anitta", "Ana Maria Braga", "Belo", "Adam Sandler", "Beyoncé", "Brad Pitt", "Bruno e Marrone", "Sandy e Júnior", "Bruce Willis", "Barack Obama", "Carmen Miranda", "Bill Gates", "Steve Jobs", "Britney Spears", "Chorão", "Beatles", "John Lenon", "Eddie Murphy", "Paul Mcartney", "Erick Jaquin", "Ed Sheeran", "Fátima Bernardes", "William Boner", "Fausto Silva", "Galvão Bueno", "George Clooney", "Ozzy Osbourne", "Gugu", "Gretchen", "Harrison Ford", "Ivete Sangalo", "Justin Bieber", "Datena", "Joelma", "Jô Soares", "Keanu Reeves", "Leonardi di Caprio", "Lady gaga", "Luciano Huck", "Lulu Santos", "Madonna", "Michael Jackson", "Opra Winfrey", "Quentin Tarantino", "Robert Downey Jr.", "Johnny Depp", "Renato Aragão (Didi)", "Elvis Presley", "Donald Trump", "George Bush", "Jair Bolsonaro", "Luís Inácio Lula da Silva", "Fernando Henrique", "Roberto Carlos", "Bill Clinton", "Shakira", "Tom Hanks", "Rihanna", "Jim Carrey", "Steven Spielberg", "Tiago Leifert", "Tony Ramos", "Tadeu Schmidt", "Will Smith", "Whindersson Nunes", "Zezé di Camargo", "Zeca Pagodinho", "Xuxa", "Tom Cruise", "Eminem", "Frank Sinatra", "Nelson Mandela", "Martin Luther King", "Júlio Cesar", "Dwayne (The Rock) Johnson", "Charles Darwin", "Albert Einstein", "Jennifer Aniston", "Leonardo da Vinci", "Thomas Edison", "Walt Disney", "Neil Armstrong", "Santos Dumond", "Adolf Hitler", "Arnold Schwarzenegger", "Fidel Castro", "Coco Chanel", "Pablo Picasso", "Charlie Chaplin", "Cleópatra", "Napoleão Bonaparte", "Mahatma Gandhi", "Socrates", "William Shakespeare", "Galileo Galilei", "Maomé", "Aristóteles", "Isaac Newton", "Wolfgang Amadeus Mozart", "Ludwig van Beethoven", "Genghis Kahn", "Sílvio Santos", "Michelangelo", "Raul Gil", "Pedro Bial", "Chitãozinho e Xororó", "Caetano Veloso", "Sigmund Freud", "Vincent van Gogh", "Freddie Mercury", "Queen", "Elton John", "Stevie Wonder", "David Bowie", "Ray Charles", "Bob Marley", "Rolling Stones", "Guns n Roses", "Vin Diesel", "AC/DC", "Eric Clapton", "Maryl Strip", "Morgan Freeman", "Fernanda Montenegro", "Sandra Bullock", "Miguel Falabela", "Nicolas Cage", "John Travolta", "Jackie Chan", "Pink Floyd", "U2", "Led Zeppelin", "Renato Russo", "Cazuza", "Gisele Bundchen", "Mamonas Assassinas", "Julia Roberts", "Ellen DeGeneres", "Bruce Lee", "Chuck Norris", "Sylvester Stallone", "Jean Claude Van Damme", "Mel Gibson", "Cristóvão Colombo", "Taylor Swift", "Mark Zuckerberg", "Bob Dylan", "Nicole Kidman", "Che Guevara", "Marilyn Monroe", "Osama Bin Laden", "Axl Rose", "Ben Stiller", "Robert De Niro", "Al Pacino", "Samuel L. Jackson", "Capital Inicial", "Jota Quest", "Skank", "Legião Urbana", "Os Paralamas do Sucesso", "Los Hermanos", "Engenheiros do Hawaii", "Charlie Brown Jr.", "RPM", "Coldplay", "Red Hot Chilli Peppers", "Nirvana", "Metallica", "Linkin Park", "Bon Jovi", "Jennifer Lopez", "Biquini Cavadão", "Tim Maia", "Hebe Camargo", "George Lucas", "juscelino kubitschek", "Monteiro Lobato", "Machado de Assis", "Clarice Lispector", "Chico Buarque", "Djavan", "Carla Perez", "Marco Polo", "Sérgio Moro", "Chiquititas", "Chico Anysio", "Mike Tyson", "Bussunda", "Beto Carreiro", "Joana darc", "Buda", "Ziraldo", "Maurício de Souza", "Tom Jobin", "Antônio Fagundes", "Thomas Alva Edson", "Graham Bell", "É o Tchan!", "Princesa Diana", "Karl Marx", "Martinho Lutero", "Nikola Tesla", "Clint Eastwood", "Denzel Washington", "Jack Nicholson", "Matt Damon", "Robin Williams", "Kevin Spacey", "Scarlet Johansson", "Mariah Carey", "Christina Aguilera", "Aretha Franklyn", "Prince", "Mick Jagger", "Zé Ramalho", "Johnny Cash", "Chris Rock", "Paul Walker", "Rodrigo Santoro", "ABBA", "Rita Lee", "Dilma Roussef", "Beto Carrero"],
-  
-  
-  "esportes e jogos": ["tourada", "pesca", "caça bandeira", "cabo de guerra", "atletismo", "golfe", "salto ornamental", "basebol", "handebol", "ping pong", "basquete", "hipismo", "arco e flecha", "boxe", "judô", "tiro esportivo", "canoagem", "triatlo", "ciclismo", "natação", "vela", "esgrima", "vôlei de quadra", "futebol", "remo", "ginástica", "halterofilismo", "hóquei", "nado sincronizado", "polo aquático", "futebol americano", "taekwondo", "tênis", "vôlei de praia", "esqui", "patinação", "snowboard", "skate", "motocross", "fórmula 1", "salto em altura", "salto em distância", "salto com vara", "arremesso de peso", "marcha atlética", "karatê", "sumô", "kung fu", "surf", "pakour", "alpinismo", "capoeira", "boliche", "futsal", "sinuca", "paintball", "rally", "maratona", "mergulho", "xadrez", "mountain bike", "rodeio", "queimada", "rapel", "frisbee", "peteca", "squash", "UFC", "Jiu-Jitsu", "muay thai", "queda de braço", "futevôlei", "fisiculturismo", "rafting", "paraquedismo", "yoga", "dardos", "Ayrton Senna", "David Beckham", "Kaka", "Messi", "Cristiano Ronaldo", "Michael Schumacher", "Neymar", "Pelé", "Romário", "Tiger Woods", "Ronaldinho Gaúcho", "Oscar Schmidt", "Usain Bolt", "Michael Jordan", "Zinédine Zidane", "Diego Maradona", "Rafael Nadal", "Roger Federer", "Zagallo", "Nelson Piquet", "Emerson Fittipaldi", "Garrincha", "poker", "Michael Phelps", "Real Madrid (time)", "Barcelona (time)", "Corinthians", "Palmeiras", "Santos (time)", "Flamengo (time)", "Vasco (time)", "Grêmio (time)", "Cruzeiro (time)", "Manchester United (time)", "Liverpool (time", "Juventus (time)", "Chelsea (time)", "Felipe Massa", "Rubinho Barrichelo", "Lewis Hamilton", "Banco Imobiliário", "Olimpíadas", "truco", "baralho", "dominó", "Copa do Mundo", "Uno", "NBA", "batalha naval", "medalha", "troféu", "pódio", "Copa Libertadores", "amarelinha", "gincana", "futebol de botão", "sudoku", "automobilismo", "pilates"],
-  
-  
-  
-  "profissões": ["advogado", "aeromoça", "arquiteto", "astronauta", "ator", "cantor", "atleta", "baba", "bailarina", "cabeleireiro", "bombeiro", "policial", "caminhoneiro", "carpinteiro", "marceneiro", "desenhista", "cozinheiro", "dentista", "detetive", "eletricista", "encanador", "faxineiro", "enfermeira", "engenheiro", "farmacêutico", "médico", "fotógrafo", "guia turístico", "intperprete", "jardineiro", "costureira", "maestro", "manicure", "marinheiro", "massagista", "meteorologista", "missionário", "garçom", "músico", "estilista", "nutricionista", "fiscal", "padeiro", "peão", "gari", "programador", "político", "pintor","químico", "jornalista", "reporter", "juiz", "segurança", "taxista", "motorista", "tradutor", "pescador", "zelador", "publicitário", "psicólogo", "luthier", "personal trainer", "piloto", "salva-vidas", "sapateiro", "tatuador", "ladrão", "veterinário", "pizzaiolo", "adestrador", "alfaiate", "borracheiro", "empreendedor", "feirante", "funileiro", "lixeiro", "manobrista", "mineiro", "ourives", "porteiro", "secretária", "vaqueiro", "agricultor", "mecânico", "contador", "escritor", "professor", "instrutor", "diretor", "comentarista", "agrônomo", "cientista", "biólogo", "matemático", "geólogo", "físico", "arqueólogo", "filósofo", "sociólogo", "psiquiatra", "cirurgião", "pediatra", "cardiologista", "ortopedista", "fisioterapeuta", "geriatra", "dermatologista", "ginecologista", "socorrista", "locutor", "CEO", "oftalmologista", "dermatologista", "metalúrgico", "ferreiro", "carteiro", "frentista", "vereador", "prefeito", "presidente", "deputado", "senador", "sommelier", "confeiteiro", "chef", "soldado", "recepcionista", "gerente", "artista", "escultor", "paleontólogo", "vigilante", "pirata", "DJ", "decorador", "embaixador", "lenhador", "dançarino", "pedreiro", "mestre de obras", "general", "vendedor", "telefonista", "datilógrafo", "coveiro", "açougueiro", "cineasta", "árbitro", "relojoeiro", "parteira", "barbeiro", "delegado", "xerife", "estagiário", "agiota", "palhaço", "equilibrista", "comediante", "ilusionista", "maquinista", "cartomante", "cowboy", "hacker"],
-  
-  
-  
-  "alimentos": ["abacate", "tâmara", "abacaxi", "abóbora", "alface", "amendoim", "ameixa", "arroz", "azeitona", "batata", "banana", "berinjela", "beterraba", "bolacha / biscoito", "bolo", "brócolis", "chocolate", "caju", "caqui", "caviar", "cebola", "cenoura", "cerveja", "chuchu", "churros", "cocada", "coco", "coentro", "couve", "cuscuz", "doce de leite", "leite", "empada", "ervilha", "esfirra", "macarrão", "farofa", "feijão", "feijoada", "frango", "hamburguer", "hot dog", "iogurte", "jabuticaba", "jaca", "lagosta", "camarão", "laranja", "lasanha", "limão", "linguiça", "maçã", "mamão", "mandioca", "manga", "maracujá", "melancia", "melão", "mexerica", "milho", "morango", "mostarda", "ketchup", "mousse", "nhoque", "nachos", "omelete", "orégano", "ovo", "panqueca", "pepino", "pêra", "pêssego", "picles", "pimenta", "pimentão", "pizza", "pudim", "queijo", "quiabo", "quibe", "rapadura", "ravioli", "refrigerante", "repolho", "rocambole", "rúcula", "salame", "salsa", "salsicha", "soja", "sopa", "sorvete", "suco", "tapioca", "tomate", "torrada", "torta", "trigo", "trufa", "uva", "vinho", "pinga", "cachaça", "kiwi", "açucar", "sal", "manteiga", "margarina", "cereja", "nozes", "alho", "atum", "aveia", "pão", "azeite", "café", "chá", "champignon", "fermento", "gelatina", "geleia", "leite condensado", "maionese", "sardinha", "bacon", "mortadela", "presunto", "espinafre", "goiaba", "palmito", "mirtilo", "amêndoa", "aspargo", "couve-flor", "cogumelo", "rabanete", "abobrinha", "salmão", "sardiha", "quinoa", "lentilha", "estrogonofe", "salada", "requeijão", "risoto", "manjericão", "batata frita", "milkshake", "calabresa", "bife a parmegiana", "moqueca", "croissant", "bife acebolado", "churrasco", "acarajé", "tucupi", "ostra", "molho de tomate", "farinha de trigo", "farinha de mandioca", "polvilho", "fubá", "pé de moleque", "pamonha", "paçoca", "canjica", "brigadeiro", "arroz doce", "vaca atolada", "tutu de feijão", "pinhão", "açafrão", "noz moscada", "orégano", "cebolinha", "gengibre", "canela", "alecrim", "colorau", "cominho", "cravo", "páprica", "tomilho", "miojo", "curry", "mingau", "granola", "linhaça", "pão de queijo", "queijo mussarela", "queijo suiço", "queijo gorgonzola", "catupiry", "cheddar", "whisky", "vodka", "açucar mascavo", "x-salada", "beirute", "pão de alho", "picanha", "filé mignon", "queijo coalho", "açaí", "guaraná", "yakisoba", "sushi", "kibe", "coxinha", "pastel", "dendê", "torresmo", "damasco", "figo", "tamarindo", "mangaba", "chiclete", "bala", "pirulito", "picolé", "pavê", "goiabada", "nutela", "danone"],
-  
-  
-  
-  "personagens": ["Batman", "Superman", "Bruce Wayne", "Clark Kent", "Spider-Man", "Peter Parker", "Hulk", "Homem de Ferro", "Tony Stark", "Flash", "Aquaman", "Capitão América", "Thor", "Coringa", "Indiana Jones", "James Bond", "Rocky Balboa", "Darth Vader", "Luke Skywalker", "Han Solo", "Yoda", "Chewbacca", "C3PO", "R2D2", "Sherlock Homes", "Harry Potter", "Hércules", "Pica Pau", "Rapunzel", "Cinderela", "Dumbo", "Mogli", "Simba", "Tarzan", "Wolverine", "Saci Perere", "Zorro", "Mickey Mouse", "Minnie Mouse", "Pluto", "Pato Donald", "Scooby Doo", "Pateta", "Captão Gancho", "Peter Pan", "Drácula", "Lobisomen", "Pinóquio", "Homer Simpson", "Lara Croft", "Robin Hood", "Bambi" ,"Mario", "Sonic", "A Bela Adormecida", "Mulher Maravilha", "Snoopy", "Woody", "Buzz Lightyear", "Shrek", "Spock", "Neo", "Mr. Bean", "Willy Wonka", "Chaves", "Seu Madruga", "King Kong", "Godzilla", "Nemo", "Freddy Krueger", "Chuck", "Alladin", "Mulher Gato", "Chapelzinho Vermelho", "Macgyver", "Agostinho Carrara", "Jack Sparrow", "Robocop", "Pantera Negra", "Moana", "Elsa (Frozen)", "Dr. Estranho", "Motoqueiro Fantasma","Aladin", "Pocahontas", "Mulan", "Pikachu", "Bob Esponja", "Lula Molusco", "Goku", "Optimus Prime", "Inspetor Clouseau", "Ethan Hunt", "Capitão Kirk", "Naruto", "Pac-Man", "John McClane", "Don Corleone", "Hannibal Lecter", "Tim Tim", "Forrest Gump", "Princesa Leia", "Rocky Balboa", "Obi-Wan Kenobi", "Marty McFly", "Gru", "Gandalf", "Dominic Toreto", "Kevin McCalister", "John Wick", "Kratos", "Ace Ventura", "Barbie", "Caco Antibes", "Charlie Brown", "Mônica (Turma da Mônica)", "Cebolinha", "Cascão", "Magali (Turma da Mônica)", "Gasparzinho", "Frodo", "Nemo", "Dory (Procurando Nemo)", "Tio Patinhas", "Fred Flintstone", "Dick Vigarista", "Zé Colmeia", "Salsicha (Scooby Doo)", "Hércules", "Magneto", "Mike Wazowski", "Popeye", "Sheldon Cooper", "Branca de Neve", "Frajola", "Urso Paddington", "Drácula", "Chico Bento", "Dona Florinda", "Professor Girafales", "Frankstein", "papai noel", "Garfield"],
-  
-  
-  
-  "bíblico": ["Abraão", "Isaque", "Jacó", "José do Egito", "Adão", "Eva", "Caim", "Abel", "Enoque", "Noé", "Ninrode", "Ló", "esposa de Ló", "Rebeca", "Raquel", "Sara", "Diná", "Jó", "Moisés", "Zípora", "Arão", "Josué", "Calebe", "Balaão", "Raabe", "Jericó", "Jardim do Éden", "Sodoma e Gomorra", "Egito", "Acã", "Rute", "Noemi", "Ester", "Mordeicai", "Gideão", "Jefté", "Sansão", "Samuel", "Saul", "Davi", "Golias", "Abigail", "Salomão", "Absalão", "Jezabel", "Elias", "Eliseu", "Jonas", "Ezequias", "Josias", "Naamã", "Jeremias", "Daniel", "Nabucodonosor", "Ciro", "Neemias", "Anjo Gabriel", "Maria", "Belém", "Herodes", "João Batista", "Pilatos", "Pedro", "Mateus", "Malco", "Judas Iscariotes", "Lázaro", "Timóteo", "Paulo", "Êutico", "Zaqueu", "Babilônia", "Zacarias", "Nazaré", "batismo", "templo", "milagre", "ressureição", "Armagedom", "sinagoga", "Isaías", "Ezequiel", "Salmos", "Provérbios", "Eclesiastes", "Apocalipse", "Gênesis", "Lucas", "José de Arimateia", "oração", "Ana", "Corá", "Miriã", "Potifar", "Jonatã", "Esaú", "Geazi", "Marcos", "dilúvio", "Espírito Santo", "anjos", "querubins", "serafins", "sacrifício", "Metusalém", "nefilins", "Torre de Babel", "Canaã", "Judá", "Levi", "lepra", "Jeová", "Jesus", "Maná", "Grande Tribulação", "Dalila", "Monte Sinai", "tabernáculo", "arca do pacto", "candelabro", "resgate", "trindade", "paraíso", "geena", "Moabe", "Israel", "Rio Nilo", "Rio Jordão", "Jerusalém", "Acabe", "Sadraque", "Mesaque", "Abdnego", "Esdras", "Assuero", "Hamã", "Samaria", "Marta", "Jairo", "Filipe", "Ebede-Meleque", "Galileia", "Herodias", "Sem", "Cã", "Jafé", "Êxodo", "Levítico", "Números", "Deuteronômio", "Juízes", "Cântico de Salomão", "Lamentações", "Oseias", "Joel", "Amós", "Obadias", "Miqueias", "Naum", "Habacuque", "Sofonias", "Ageu", "Zacarias", "Malaquias", "João", "Atos", "Romanos", "1 Coríntios", "2 Corintios", "Gálatas", "Efésios", "Filipenses", "Colossenses", "Tito", "Filêmon", "Hebreus", "Tiago", "profecia", "sacerdote", "Ur", "adoração", "Ananias", "Labão", "Bíblia", "Mar Vermelho", "Os 10 mandamentos", "Dorcas", "Nabal", "Bate-Seba", "Urias", "Natã", "Assíria", "viuva de Sarefá", "pacto", "Ungido"]
-};
+// game state (in-memory, reset when admin (re)joins or server restarts)
+let state = createNewState();
+let adminSocketId = null;
 
-// in-memory state (não persistir em disco)
-let state = {
-  players: [], // {id, socketId, nameRaw, name, isAdmin, team:'lobby'|'team1'|'team2'}
-  categoriesAvailable: [...DEFAULT_CATEGORIES],
-  usedCategories: new Set(),
-  scores: { team1: 0, team2: 0 },
-  round: {
-    category: null,
-    teamTurn: null, // 'team1' or 'team2'
-    chooserSocketId: null,
-    chooserPlayerId: null,
-    timeLeft: 0,
-    timer: null,
-    usedWords: new Set(),
-    correctWords: [],
-    skippedWords: []
-  },
-  rotationIndex: { team1: 0, team2: 0 }
-};
-
-function resetState() {
-  state.players = state.players.map(p => ({ ...p, team: 'lobby' }));
-  state.categoriesAvailable = DEFAULT_CATEGORIES.filter(c => true);
-  state.usedCategories = new Set();
-  state.scores = { team1: 0, team2: 0 };
-  state.round = {
-    category: null,
-    teamTurn: null,
-    chooserSocketId: null,
-    chooserPlayerId: null,
-    timeLeft: 0,
-    timer: null,
-    usedWords: new Set(),
-    correctWords: [],
-    skippedWords: []
+function createNewState() {
+  const words = loadWords();
+  return {
+    players: {}, // socketId -> {name, displayName, team: 'lobby'|'team1'|'team2'}
+    lobbyOrder: [],
+    teams: { team1: [], team2: [] },
+    categories: [
+      { key: 'animais', label: 'animais' },
+      { key: 'tv_cinema', label: 'tv e cinema' },
+      { key: 'objetos', label: 'objetos' },
+      { key: 'lugares', label: 'lugares' },
+      { key: 'pessoas', label: 'pessoas' },
+      { key: 'esportes_e_jogos', label: 'esportes e jogos' },
+      { key: 'profissoes', label: 'profissões' },
+      { key: 'alimentos', label: 'alimentos' },
+      { key: 'personagens', label: 'personagens' },
+      { key: 'biblico', label: 'bíblico' }
+    ],
+    availableWords: loadWords(), // copy
+    usedWords: {}, // categoryKey -> Set
+    scores: { team1: 0, team2: 0 },
+    round: {
+      currentCategory: null,
+      phase: 'lobby', // lobby, category, picking, playing, review
+      turnTeam: null, // 'team1'|'team2'
+      activePlayerSocket: null,
+      rotationIndex: { team1: 0, team2: 0 }
+    }
   };
-  state.rotationIndex = { team1: 0, team2: 0 };
 }
 
-function publicPlayers() {
-  return state.players.map(p => ({ id: p.id, name: p.name, team: p.team, isAdmin: p.isAdmin }));
+function resetGameFromAdminJoin(adminSocket) {
+  state = createNewState();
+  adminSocketId = adminSocket.id;
+  io.emit('reset');
 }
 
-function findPlayerBySocket(socketId) {
-  return state.players.find(p => p.socketId === socketId);
-}
+io.on('connection', (socket) => {
+  socket.on('join', (name) => {
+    const isAdmin = name.includes('9999');
+    const displayName = name.replace(/9999/g, '').trim() || 'Player';
+    state.players[socket.id] = { name, displayName, team: 'lobby', socketId: socket.id };
+    state.lobbyOrder.push(socket.id);
 
-function getTeamPlayers(team) {
-  return state.players.filter(p => p.team === team);
-}
-
-function pickUnusedWord(category) {
-  const pool = (WORDS[category] || []).filter(w => !state.round.usedWords.has(w));
-  if (pool.length === 0) return null;
-  const choice = pool[Math.floor(Math.random() * pool.length)];
-  state.round.usedWords.add(choice);
-  return choice;
-}
-
-function stopTimer() {
-  if (state.round.timer) {
-    clearInterval(state.round.timer);
-    state.round.timer = null;
-  }
-}
-
-io.on('connection', socket => {
-  console.log('conn', socket.id);
-
-  socket.on('join', (nameRaw) => {
-    if (!nameRaw || typeof nameRaw !== 'string') return;
-    const isAdmin = nameRaw.includes('9999');
-    const name = nameRaw.replace(/9999/g, '');
-
-    // If admin connects, reset everything (requirement: reload admin -> reset)
     if (isAdmin) {
-      resetState();
+      // admin (re)joined -> reset everything
+      resetGameFromAdminJoin(socket);
     }
 
-    const player = { id: socket.id, socketId: socket.id, nameRaw, name, isAdmin, team: 'lobby' };
-    state.players.push(player);
-
-    io.emit('state', { players: publicPlayers(), categoriesAvailable: state.categoriesAvailable, usedCategories: Array.from(state.usedCategories), scores: state.scores });
-  });
-
-  socket.on('assign', ({ playerId, team }) => {
-    const by = findPlayerBySocket(socket.id);
-    if (!by || !by.isAdmin) return;
-    const p = state.players.find(x => x.id === playerId);
-    if (!p) return;
-    if (['lobby','team1','team2'].includes(team)) p.team = team;
-    io.emit('state', { players: publicPlayers(), categoriesAvailable: state.categoriesAvailable, usedCategories: Array.from(state.usedCategories), scores: state.scores });
-  });
-
-  socket.on('startCategories', () => {
-    const by = findPlayerBySocket(socket.id);
-    if (!by || !by.isAdmin) return;
-    io.emit('showCategories', { categories: state.categoriesAvailable });
-  });
-
-  socket.on('selectCategory', (category) => {
-    const by = findPlayerBySocket(socket.id);
-    if (!by || !by.isAdmin) return;
-    if (!state.categoriesAvailable.includes(category)) return;
-
-    // mark used and remove from available
-    state.usedCategories.add(category);
-    state.categoriesAvailable = state.categoriesAvailable.filter(c => c !== category);
-
-    // prepare round
-    state.round.category = category;
-    state.round.usedWords = new Set();
-    state.round.correctWords = [];
-    state.round.skippedWords = [];
-
-    // first team of category is team1
-    state.round.teamTurn = 'team1';
-
-    // pick chooser using rotation
-    const tPlayers = getTeamPlayers(state.round.teamTurn);
-    if (tPlayers.length === 0) {
-      io.emit('errorMsg', 'Equipa vazia');
-      return;
-    }
-    const idx = state.rotationIndex[state.round.teamTurn] % tPlayers.length;
-    const chooser = tPlayers[idx];
-    state.round.chooserSocketId = chooser.socketId;
-    state.round.chooserPlayerId = chooser.id;
-
-    // notify all: prepare [name]
-    io.emit('prepareChooser', { team: state.round.teamTurn, player: { id: chooser.id, name: chooser.name } });
-  });
-
-  socket.on('startTurn', () => {
-    // only chooser can start
-    if (socket.id !== state.round.chooserSocketId) return;
-    stopTimer();
-    state.round.timeLeft = 75;
-
-    // pick first word
-    const word = pickUnusedWord(state.round.category);
-    state.round.currentWord = word;
-
-    // emit start for chooser (word + time) and for viewers (time only)
-    io.to(state.round.chooserSocketId).emit('turnStarted', { word: state.round.currentWord, timeLeft: state.round.timeLeft });
-    socket.broadcast.emit('turnViewer', { timeLeft: state.round.timeLeft, chooserId: state.round.chooserPlayerId });
-
-    state.round.timer = setInterval(() => {
-      state.round.timeLeft -= 1;
-      if (state.round.timeLeft <= 0) {
-        stopTimer();
-        io.emit('roundEnded', { correct: state.round.correctWords, skipped: state.round.skippedWords });
-      } else {
-        // broadcast tick
-        io.emit('tick', { timeLeft: state.round.timeLeft });
-        if (state.round.timeLeft === 5) {
-          // tell chooser to hide skip
-          io.to(state.round.chooserSocketId).emit('hideSkip');
-        }
-      }
-    }, 1000);
-  });
-
-  socket.on('correct', () => {
-    if (socket.id !== state.round.chooserSocketId) return;
-    if (!state.round.currentWord) return;
-    // add point
-    if (state.round.teamTurn === 'team1') state.scores.team1 += 1;
-    else state.scores.team2 += 1;
-    state.round.correctWords.push(state.round.currentWord);
-
-    // pick next word (unique)
-    const next = pickUnusedWord(state.round.category);
-    state.round.currentWord = next;
-    io.emit('scoreUpdate', state.scores);
-    if (next) {
-      io.to(state.round.chooserSocketId).emit('nextWord', { word: next });
-    } else {
-      // no more words -> end round early
-      stopTimer();
-      io.emit('roundEnded', { correct: state.round.correctWords, skipped: state.round.skippedWords });
-    }
-  });
-
-  socket.on('skip', () => {
-    if (socket.id !== state.round.chooserSocketId) return;
-    if (!state.round.currentWord) return;
-    state.round.skippedWords.push(state.round.currentWord);
-    // start 3s cooldown for chooser (buttons hidden)
-    io.to(state.round.chooserSocketId).emit('skipCooldown');
-    // pick next
-    const next = pickUnusedWord(state.round.category);
-    state.round.currentWord = next;
-    if (next) io.to(state.round.chooserSocketId).emit('nextWord', { word: next });
-    else {
-      stopTimer();
-      io.emit('roundEnded', { correct: state.round.correctWords, skipped: state.round.skippedWords });
-    }
-  });
-
-  socket.on('nextTeam', () => {
-    const by = findPlayerBySocket(socket.id);
-    if (!by || !by.isAdmin) return;
-    stopTimer();
-
-    if (state.round.teamTurn === 'team1') {
-      // finish team1 -> set team2
-      state.round.teamTurn = 'team2';
-      // choose chooser for team2 by rotation
-      const tPlayers = getTeamPlayers('team2');
-      if (tPlayers.length === 0) {
-        io.emit('errorMsg', 'Equipe 2 vazia');
-        return;
-      }
-      const idx = state.rotationIndex['team2'] % tPlayers.length;
-      const chooser = tPlayers[idx];
-      state.round.chooserSocketId = chooser.socketId;
-      state.round.chooserPlayerId = chooser.id;
-      io.emit('prepareChooser', { team: 'team2', player: { id: chooser.id, name: chooser.name } });
-    } else {
-      // both teams played -> end category and rotate indices
-      // advance rotation indices so next category picks different players
-      if (getTeamPlayers('team1').length > 0) state.rotationIndex.team1 = (state.rotationIndex.team1 + 1) % Math.max(1, getTeamPlayers('team1').length);
-      if (getTeamPlayers('team2').length > 0) state.rotationIndex.team2 = (state.rotationIndex.team2 + 1) % Math.max(1, getTeamPlayers('team2').length);
-
-      // reset round and go back to categories
-      state.round = { category: null, teamTurn: null, chooserSocketId: null, chooserPlayerId: null, timeLeft: 0, timer: null, usedWords: state.round.usedWords, correctWords: [], skippedWords: [] };
-      io.emit('backToCategories', { categories: state.categoriesAvailable, usedCategories: Array.from(state.usedCategories), scores: state.scores });
-    }
+    // send full state to the new client
+    io.emit('state', publicState());
   });
 
   socket.on('requestState', () => {
-    io.to(socket.id).emit('state', { players: publicPlayers(), categoriesAvailable: state.categoriesAvailable, usedCategories: Array.from(state.usedCategories), scores: state.scores });
+    socket.emit('state', publicState());
   });
 
-  socket.on('finishConfirm', (yes) => {
-    const by = findPlayerBySocket(socket.id);
-    if (!by || !by.isAdmin) return;
-    if (yes) {
-      // show final scores
-      io.emit('final', { scores: state.scores });
-      // no reset here; admin could reload to reset
+  socket.on('updateTeams', (teams) => {
+    if (socket.id !== adminSocketId) return;
+    // teams: { team1: [socketId], team2: [socketId], lobby: [socketId] }
+    // apply teams
+    for (const sid in state.players) {
+      state.players[sid].team = 'lobby';
+    }
+    state.teams.team1 = teams.team1.slice();
+    state.teams.team2 = teams.team2.slice();
+    state.lobbyOrder = teams.lobby.slice();
+
+    for (const sid of state.teams.team1) if (state.players[sid]) state.players[sid].team = 'team1';
+    for (const sid of state.teams.team2) if (state.players[sid]) state.players[sid].team = 'team2';
+    for (const sid of state.lobbyOrder) if (state.players[sid]) state.players[sid].team = 'lobby';
+
+    io.emit('state', publicState());
+  });
+
+  socket.on('startCategoryPhase', (categoryKey) => {
+    if (socket.id !== adminSocketId) return;
+    if (!state.categories.find(c => c.key === categoryKey)) return;
+    state.round.currentCategory = categoryKey;
+    state.round.phase = 'category';
+    // initialize usedWords set for this category
+    state.usedWords[categoryKey] = new Set();
+    // set turnTeam to team1 first
+    state.round.turnTeam = 'team1';
+    io.emit('state', publicState());
+  });
+
+  socket.on('adminAdvanceFromCategories', () => {
+    if (socket.id !== adminSocketId) return;
+    if (!state.round.currentCategory) return;
+    // choose first player from turnTeam according to rotation index
+    startNextTurn();
+  });
+
+  socket.on('startTurn', () => {
+    // only active player can start
+    if (socket.id !== state.round.activePlayerSocket) return;
+    startTimerForActivePlayer();
+  });
+
+  socket.on('correct', () => {
+    // only active player can send correct
+    if (socket.id !== state.round.activePlayerSocket) return;
+    const category = state.round.currentCategory;
+    const word = pickWord(category);
+    if (!word) return;
+    state.round.lastRound = state.round.lastRound || { correct: [], skipped: [] };
+    state.round.lastRound.correct.push(word);
+    // add score to active team
+    if (state.round.turnTeam === 'team1') state.scores.team1 += 1;
+    else state.scores.team2 += 1;
+    io.emit('wordCorrect', { word, scores: state.scores });
+  });
+
+  socket.on('skip', () => {
+    if (socket.id !== state.round.activePlayerSocket) return;
+    const category = state.round.currentCategory;
+    const word = pickWord(category);
+    if (!word) return;
+    state.round.lastRound = state.round.lastRound || { correct: [], skipped: [] };
+    state.round.lastRound.skipped.push(word);
+    io.emit('wordSkipped', { word });
+  });
+
+  socket.on('finishTurn', () => {
+    if (socket.id !== adminSocketId) return;
+    endCurrentTurn();
+  });
+
+  socket.on('finalizeGame', () => {
+    if (socket.id !== adminSocketId) return;
+    state.round.phase = 'finished';
+    io.emit('state', publicState());
+  });
+
+  socket.on('endGameConfirm', (confirm) => {
+    if (socket.id !== adminSocketId) return;
+    if (confirm) {
+      state.round.phase = 'final';
+      io.emit('state', publicState());
     } else {
-      io.emit('backToCategories', { categories: state.categoriesAvailable, usedCategories: Array.from(state.usedCategories), scores: state.scores });
+      state.round.phase = 'category';
+      io.emit('state', publicState());
     }
   });
 
   socket.on('disconnect', () => {
     // remove player
-    state.players = state.players.filter(p => p.socketId !== socket.id);
-    io.emit('state', { players: publicPlayers(), categoriesAvailable: state.categoriesAvailable, usedCategories: Array.from(state.usedCategories), scores: state.scores });
+    if (state.players[socket.id]) {
+      delete state.players[socket.id];
+      state.lobbyOrder = state.lobbyOrder.filter(sid => sid !== socket.id);
+      state.teams.team1 = state.teams.team1.filter(sid => sid !== socket.id);
+      state.teams.team2 = state.teams.team2.filter(sid => sid !== socket.id);
+
+      if (socket.id === adminSocketId) {
+        adminSocketId = null;
+        // as admin left, reset state so players return to screen 1
+        state = createNewState();
+        io.emit('reset');
+      } else {
+        io.emit('state', publicState());
+      }
+    }
   });
 });
 
+// Helper functions
+function publicState() {
+  // prepare minimal state to send to clients
+  const players = Object.fromEntries(Object.entries(state.players).map(([k, v]) => [k, { displayName: v.displayName, team: v.team }]));
+  const categoriesRemaining = state.categories.filter(c => !state.usedWords[c.key] || state.usedWords[c.key].size < (state.availableWords[c.key] || []).length);
+  return {
+    players,
+    lobbyOrder: state.lobbyOrder,
+    teams: state.teams,
+    categories: categoriesRemaining,
+    scores: state.scores,
+    round: state.round,
+    adminSocketId
+  };
+}
+
+function pickWord(categoryKey) {
+  const pool = state.availableWords[categoryKey] || [];
+  if (!pool.length) return null;
+  const used = state.usedWords[categoryKey] || new Set();
+  const available = pool.filter(w => !used.has(w));
+  if (!available.length) return null;
+  const word = available[Math.floor(Math.random() * available.length)];
+  used.add(word);
+  state.usedWords[categoryKey] = used;
+  return word;
+}
+
+let countdown = null;
+let countdownRemaining = 0;
+
+function startTimerForActivePlayer() {
+  const duration = 75;
+  countdownRemaining = duration;
+  state.round.phase = 'playing';
+  state.round.lastRound = { correct: [], skipped: [] };
+  io.emit('timerStart', { duration, activePlayer: state.round.activePlayerSocket });
+
+  if (countdown) clearInterval(countdown);
+  countdown = setInterval(() => {
+    countdownRemaining -= 1;
+    io.emit('timerTick', { remaining: countdownRemaining });
+    if (countdownRemaining <= 0) {
+      clearInterval(countdown);
+      io.emit('timerEnd', { result: state.round.lastRound });
+      // after timer ends, advance to review phase
+      state.round.phase = 'review';
+      io.emit('state', publicState());
+    }
+  }, 1000);
+}
+
+function startNextTurn() {
+  // set active player socket based on rotation for current turnTeam
+  const team = state.round.turnTeam;
+  const members = state.teams[team];
+  if (!members || members.length === 0) {
+    // skip to other team
+    state.round.turnTeam = team === 'team1' ? 'team2' : 'team1';
+    return startNextTurn();
+  }
+  const idx = state.round.rotationIndex[team] % members.length;
+  const sid = members[idx];
+  state.round.activePlayerSocket = sid;
+  state.round.phase = 'picking';
+  io.emit('state', publicState());
+}
+
+function endCurrentTurn() {
+  // mark category as used if both teams have played? We'll remove category when both teams played
+  const cat = state.round.currentCategory;
+  // rotate to next team or finish category
+  if (state.round.turnTeam === 'team1') {
+    state.round.turnTeam = 'team2';
+  } else {
+    // both teams finished: remove category from categories
+    state.categories = state.categories.filter(c => c.key !== cat);
+    // advance rotation indices for both teams
+    state.round.rotationIndex.team1 = (state.round.rotationIndex.team1 + 1) % Math.max(1, state.teams.team1.length);
+    state.round.rotationIndex.team2 = (state.round.rotationIndex.team2 + 1) % Math.max(1, state.teams.team2.length);
+    // reset currentCategory to null so admin returns to categories screen
+    state.round.currentCategory = null;
+    state.round.turnTeam = null;
+    state.round.activePlayerSocket = null;
+    state.round.phase = 'category';
+    io.emit('state', publicState());
+    return;
+  }
+  // start next team's turn
+  startNextTurn();
+}
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('listening', PORT));
+server.listen(PORT, () => console.log('Server listening on', PORT));

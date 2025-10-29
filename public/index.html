@@ -3,88 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-  <title>game</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Game</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
-    <!-- placar pequeno, sempre visível -->
-    <div id="score" class="score">0 — 0</div>
+    <!-- top score bar -->
+    <div id="scorebar">Team 1: <span id="score1">0</span> — Team 2: <span id="score2">0</span></div>
 
-    <!-- TELA 1: nome -->
-    <div id="screen-1" class="screen">
-      <input id="nameInput" type="text" placeholder="" autocapitalize="words" />
-      <button id="confirmName" class="btn big green">Confirmar</button>
-    </div>
-
-    <!-- TELA 2: lobby/admin -->
-    <div id="screen-2" class="screen hidden">
-      <div class="threeCols">
-        <div class="col">
-          <h3>Lobby</h3>
-          <ul id="lobbyList" class="dropList"></ul>
-        </div>
-        <div class="col">
-          <h3>Equipe 1</h3>
-          <ul id="team1List" class="dropList"></ul>
-        </div>
-        <div class="col">
-          <h3>Equipe 2</h3>
-          <ul id="team2List" class="dropList"></ul>
-        </div>
-      </div>
-      <div class="bottomRow">
-        <button id="startCategories" class="btn green">Categorias</button>
-      </div>
-    </div>
-
-    <!-- TELA 3: escolher categoria (admin) -->
-    <div id="screen-3" class="screen hidden">
-      <div id="cats" class="catsGrid"></div>
-      <button id="finishCategory" class="btn purple">Finalizar</button>
-    </div>
-
-    <!-- TELA 4: preparar [nome] -->
-    <div id="screen-4" class="screen hidden center">
-      <div id="prepareText" class="prepareText"></div>
-      <button id="startTurnBtn" class="btn big green hidden">Iniciar</button>
-    </div>
-
-    <!-- TELA 5a: jogador ativo -->
-    <div id="screen-5a" class="screen hidden center">
-      <div id="timeTop" class="timer big"></div>
-      <div id="wordLarge" class="wordLarge"></div>
-      <div class="bigButtons">
-        <button id="correctBtn" class="roundBtn green big">acertou</button>
-        <button id="skipBtn" class="roundBtn red big">pular</button>
-      </div>
-    </div>
-
-    <!-- TELA 5b: espectadores -->
-    <div id="screen-5b" class="screen hidden center">
-      <div id="timeTop2" class="timer big"></div>
-    </div>
-
-    <!-- TELA 6: resultados da rodada -->
-    <div id="screen-6" class="screen hidden">
-      <div id="listResults"></div>
-      <button id="nextTeamBtn" class="btn green">Próxima equipe</button>
-    </div>
-
-    <!-- TELA confirmar finalizar -->
-    <div id="screen-finish" class="screen hidden center">
-      <div class="confirm">Deseja mesmo encerrar?</div>
-      <div class="row">
-        <button id="finishYes" class="btn green">Sim</button>
-        <button id="finishNo" class="btn red">Não</button>
-      </div>
-    </div>
-
-    <!-- TELA final -->
-    <div id="screen-final" class="screen hidden center">
-      <div id="finalScore" class="finalScore"></div>
-    </div>
-
+    <div id="screen-container"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
