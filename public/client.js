@@ -88,15 +88,32 @@ function renderPlayers(state){
       if(!p) return;
       const li = document.createElement('li');
       li.className = 'player';
-      li.draggable = state.players[socket.id] && state.players[socket.id].isAdmin;
+      const isAdmin = state.players[socket.id] && state.players[socket.id].isAdmin;
+      li.setAttribute('draggable', !!isAdmin);
       li.id = 'player-'+id;
       li.textContent = p.displayName || p.name;
-      li.addEventListener('dragstart', e=>{
-        e.dataTransfer.setData('text/plain', id);
-      });
+
+      if(isAdmin){
+        li.addEventListener('dragstart', e=>{
+          e.dataTransfer.setData('text/plain', id);
+        });
+        li.addEventListener('click', (ev)=>{
+          // on screen 1 allow quick move by admin (mobile-friendly)
+          if(state.screen === 1){
+            const dest = prompt('Mover para: "lobby", "team1" ou "team2"', 'team1');
+            if(!dest) return;
+            const d = dest.trim();
+            if(['lobby','team1','team2'].includes(d)){
+              socket.emit('dragUpdate', { playerId: id, toTeam: d });
+            }
+          }
+        });
+      }
+
       ul.appendChild(li);
     });
   });
+
   const tp = document.getElementById('teamsPlayers');
   if(tp){
     tp.innerHTML = '';
@@ -113,7 +130,7 @@ function renderPlayers(state){
         li.className = 'player';
         li.textContent = state.players[id].displayName || state.players[id].name;
         li.addEventListener('click', ()=>{
-          if(state.players[socket.id] && state.players[socket.id].isAdmin){
+          if(state.players[socket.id] && state.players[socket.id].isAdmin && state.screen === 3){
             socket.emit('selectPlayerToPlay', id);
           }
         });
@@ -123,6 +140,8 @@ function renderPlayers(state){
       tp.appendChild(div);
     });
   }
+
+  setupDropTargets();
 }
 
 function renderScores(state){
@@ -258,10 +277,11 @@ function setupDropTargets(){
   ['lobby','team1','team2'].forEach(k=>{
     const ul = document.getElementById(k);
     if(!ul) return;
-    ul.ondragover = (e)=> e.preventDefault();
+    ul.ondragover = (e)=> { e.preventDefault(); };
     ul.ondrop = (e)=> {
       e.preventDefault();
       const pid = e.dataTransfer.getData('text/plain');
+      if(!pid) return;
       socket.emit('dragUpdate', { playerId: pid, toTeam: k });
     };
   });
@@ -273,6 +293,5 @@ window.addEventListener('beforeunload', function (e) {
 });
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  setupDropTargets();
   showScreen(1);
 });
