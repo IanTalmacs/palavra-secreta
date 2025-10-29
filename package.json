@@ -1,7 +1,7 @@
 {
-  "name": "multiplayer-wordgame",
+  "name": "wits-game",
   "version": "1.0.0",
-  "description": "Multiplayer browser word game with Node + Socket.IO",
+  "description": "Jogo estilo palavras — Node + Socket.io — Mobile-first flat UI",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
