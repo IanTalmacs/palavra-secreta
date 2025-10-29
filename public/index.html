@@ -1,86 +1,101 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Guess Game</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="/socket.io/socket.io.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Palavras</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main id="app">
-    <!-- Screen 1: Join -->
-    <section id="screen-1" class="screen active">
-      <h1 class="brand">Play & Guess</h1>
-      <div class="card">
-        <label>Nome</label>
-        <input id="inp-name" placeholder="seu nome (se incluir 995 vira admin)" />
-        <div class="team-row">
-          <button class="team-btn" data-team="1">Equipe 1</button>
-          <button class="team-btn" data-team="2">Equipe 2</button>
+    <div id="app">
+        <div id="screen1" class="screen">
+            <div class="header">
+                <h1>Jogo de Palavras</h1>
+            </div>
+            <input type="text" id="nameInput" placeholder="Digite seu nome" class="name-input">
+            
+            <div class="teams-container">
+                <div class="team-section" id="team1Section">
+                    <h2>Equipe 1</h2>
+                    <div class="team-players" id="team1Players"></div>
+                </div>
+                
+                <div class="team-section" id="team2Section">
+                    <h2>Equipe 2</h2>
+                    <div class="team-players" id="team2Players"></div>
+                </div>
+            </div>
+            
+            <button id="categoriesBtn" class="btn-primary">Categorias</button>
         </div>
-        <button id="btn-join" class="primary large">Entrar</button>
-      </div>
-      <div class="footer-note">Design mobile; botões e letras grandes.</div>
-    </section>
 
-    <!-- Screen 2: Categories & scoreboard -->
-    <section id="screen-2" class="screen">
-      <div class="top-row">
-        <div id="score" class="score">Equipe 1: <span id="score1">0</span> — Equipe 2: <span id="score2">0</span></div>
-        <button id="back-to-join" class="ghost">Sair</button>
-      </div>
-      <div class="grid-cats" id="categories">
-        <!-- categories inserted dynamically -->
-      </div>
-    </section>
+        <div id="screen2" class="screen" style="display: none;">
+            <div class="score-board">
+                <div class="score-item">
+                    <span class="score-label">Equipe 1</span>
+                    <span class="score-value" id="score1">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Equipe 2</span>
+                    <span class="score-value" id="score2">0</span>
+                </div>
+            </div>
+            
+            <div class="categories-grid">
+                <button class="category-btn" data-category="animais">Animais</button>
+                <button class="category-btn" data-category="tv-cinema">TV e Cinema</button>
+                <button class="category-btn" data-category="objetos">Objetos</button>
+                <button class="category-btn" data-category="lugares">Lugares</button>
+                <button class="category-btn" data-category="pessoas">Pessoas</button>
+                <button class="category-btn" data-category="esportes-jogos">Esportes e Jogos</button>
+                <button class="category-btn" data-category="profissoes">Profissões</button>
+                <button class="category-btn" data-category="alimentos">Alimentos</button>
+                <button class="category-btn" data-category="personagens">Personagens</button>
+                <button class="category-btn" data-category="biblico">Bíblico</button>
+            </div>
+        </div>
 
-    <!-- Screen 3: Choose player (buttons with players); admin selects -->
-    <section id="screen-3" class="screen">
-      <div class="top-row">
-        <div id="score-3" class="score">Pontuação</div>
-        <button id="btn-categories" class="ghost">Categorias</button>
-      </div>
-      <div id="players-list" class="players-list"></div>
-      <div class="hint">Admin seleciona o player; o player escolhido verá botão "Iniciar".</div>
-    </section>
+        <div id="screen3" class="screen" style="display: none;">
+            <div class="header">
+                <h2>Escolha um Jogador</h2>
+            </div>
+            <div id="playersButtons" class="players-buttons"></div>
+            <button id="startBtn" class="btn-primary" style="display: none;">Iniciar</button>
+        </div>
 
-    <!-- Screen 4a: chosen player plays -->
-    <section id="screen-4a" class="screen">
-      <div class="top-row">
-        <div id="timer-4a" class="timer">75</div>
-        <button id="btn-exit-round" class="ghost">Sair</button>
-      </div>
-      <div class="center large-word" id="word-display">...</div>
-      <div class="controls-row">
-        <button id="btn-correct" class="circle green">ACERTOU</button>
-        <button id="btn-skip" class="circle red">PULAR</button>
-      </div>
-    </section>
+        <div id="screen4a" class="screen" style="display: none;">
+            <div class="timer" id="timer">75</div>
+            <div class="word-display" id="wordDisplay"></div>
+            <div class="skip-message" id="skipMessage">Pulando...</div>
+            <div class="action-buttons">
+                <button id="correctBtn" class="btn-correct">✓</button>
+                <button id="skipBtn" class="btn-skip">✗</button>
+            </div>
+        </div>
 
-    <!-- Screen 4b: others see only timer -->
-    <section id="screen-4b" class="screen">
-      <div class="center">
-        <div id="timer-4b" class="timer-big">75</div>
-        <div class="hint">Aguarde — jogador está adivinhando.</div>
-      </div>
-    </section>
+        <div id="screen4b" class="screen" style="display: none;">
+            <div class="timer-large" id="timerLarge">75</div>
+        </div>
 
-    <!-- Screen 5: results -->
-    <section id="screen-5" class="screen">
-      <div class="top-row">
-        <div id="score-5" class="score">Resultado</div>
-        <button id="btn-cat-5" class="ghost">Categorias</button>
-      </div>
-      <div class="results">
-        <h3>Acertadas</h3>
-        <ul id="list-correct"></ul>
-        <h3>Puladas</h3>
-        <ul id="list-skipped"></ul>
-      </div>
-    </section>
-  </main>
+        <div id="screen5" class="screen" style="display: none;">
+            <div class="header">
+                <h2>Resultado</h2>
+            </div>
+            <div class="results-container">
+                <div class="results-section">
+                    <h3>Acertou</h3>
+                    <div id="correctWords" class="words-list correct"></div>
+                </div>
+                <div class="results-section">
+                    <h3>Pulou</h3>
+                    <div id="skippedWords" class="words-list skipped"></div>
+                </div>
+            </div>
+            <button id="backToCategoriesBtn" class="btn-primary">Categorias</button>
+        </div>
+    </div>
 
-  <script src="client.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
 </body>
 </html>

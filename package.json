@@ -1,13 +1,13 @@
 {
-  "name": "fast-guess-game",
+  "name": "jogo-palavras",
   "version": "1.0.0",
-  "description": "Jogo de adivinhação em tempo real com Node e Socket.IO - mobile friendly",
+  "description": "Jogo de adivinhação de palavras em tempo real",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.6.1"
   }
 }
