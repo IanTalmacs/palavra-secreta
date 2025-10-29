@@ -8,336 +8,257 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
-
 app.use(express.static(path.join(__dirname, 'public')));
 
-// load words (full set)
-const WORDS_FILE = path.join(__dirname, 'public', 'words.json');
-let WORDS_FULL = {};
-try {
-  WORDS_FULL = JSON.parse(fs.readFileSync(WORDS_FILE, 'utf8'));
-} catch (e) {
-  console.error('Erro ao carregar words.json', e);
-  process.exit(1);
-}
+// Load words.json
+const WORDS = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'words.json'), 'utf8'));
+const CATEGORIES = Object.keys(WORDS);
 
-// Utility functions
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
+// Global ephemeral state (resets if server restarts or admin disconnects)
+let state = createInitialState();
 
-// Server game state (in-memory, temporary)
-let players = []; // {id, socketId, name, displayName, team: 'lobby'|'team1'|'team2', isAdmin}
-let scores = { team1: 0, team2: 0 };
-let usedWords = new Set();
-let categoriesSelected = Object.keys(WORDS_FULL); // by default all
-let round = {
-  active: false,
-  currentPlayerId: null,
-  currentWord: null,
-  wordHistory: [], // {word, status: 'correct'|'skipped'}
-  endTime: null,
-  timerInterval: null,
-  skipUntil: null
-};
-let selectedPlayerId = null;
-
-function resetAllBecauseAdminLeft() {
-  // Clear everything and force clients to screen1 (they must re-join)
-  players = [];
-  scores = { team1: 0, team2: 0 };
-  usedWords = new Set();
-  categoriesSelected = Object.keys(WORDS_FULL);
-  round = {
-    active: false,
-    currentPlayerId: null,
-    currentWord: null,
-    wordHistory: [],
-    endTime: null,
-    timerInterval: null,
-    skipUntil: null
-  };
-  selectedPlayerId = null;
-  io.emit('forceReset'); // clients will go back to screen 1
-}
-
-function pickNextWord() {
-  // gather available words from categoriesSelected excluding usedWords
-  let pool = [];
-  categoriesSelected.forEach(cat => {
-    const list = WORDS_FULL[cat] || [];
-    list.forEach(w => {
-      if (!usedWords.has(w)) pool.push({ word: w, category: cat });
-    });
-  });
-  if (pool.length === 0) return null;
-  const idx = Math.floor(Math.random() * pool.length);
-  const chosen = pool[idx].word;
-  usedWords.add(chosen);
-  return chosen;
-}
-
-function broadcastState() {
-  io.emit('state', {
-    players: players.map(p => ({
-      id: p.id,
-      displayName: p.displayName,
-      team: p.team,
-      isAdmin: p.isAdmin
-    })),
-    scores,
-    selectedPlayerId,
-    roundActive: round.active,
-    roundInfo: {
-      currentPlayerId: round.currentPlayerId,
-      currentWord: round.currentWord,
-      wordHistory: round.wordHistory,
-      endTime: round.endTime,
-      skipUntil: round.skipUntil
+function createInitialState() {
+  return {
+    screen: 1,
+    players: {}, // socketId -> { id, name, displayName, team: 'lobby'|'team1'|'team2', isAdmin }
+    adminSocketId: null,
+    adminName: null,
+    teams: {
+      team1: [],
+      team2: [],
+      lobby: []
     },
-    categoriesAvailable: Object.keys(WORDS_FULL),
-    categoriesSelected
-  });
+    scores: { team1: 0, team2: 0 },
+    categories: CATEGORIES.slice(), // all selected by default
+    usedWords: new Set(),
+    round: null // when round active: { activePlayerId, endTime, currentWord, correct:[], skipped:[] }
+  };
 }
 
-// Helper to find admin socket (first admin)
-function findAdminSocket() {
-  const admin = players.find(p => p.isAdmin);
-  if (!admin) return null;
-  return io.sockets.sockets.get(admin.socketId) || null;
+function resetAll() {
+  state = createInitialState();
+  io.emit('reset-to-screen-1');
 }
 
-// Socket.IO
-io.on('connection', socket => {
-  console.log('socket connected', socket.id);
-
-  socket.on('join', (name, cb) => {
-    if (!name || typeof name !== 'string') {
-      return cb && cb({ ok: false, error: 'Nome inválido' });
+// Helper: pick random word from selected categories not used yet
+function pickWord() {
+  const avail = [];
+  for (const cat of state.categories) {
+    const list = WORDS[cat] || [];
+    for (const w of list) {
+      if (!state.usedWords.has(w)) avail.push({ word: w, cat });
     }
+  }
+  if (!avail.length) return null;
+  const pick = avail[Math.floor(Math.random() * avail.length)];
+  state.usedWords.add(pick.word);
+  return pick.word;
+}
 
-    // If someone else is already using this socket id (unlikely), ignore
-    const existing = players.find(p => p.socketId === socket.id);
-    if (existing) {
-      return cb && cb({ ok: true });
-    }
+io.on('connection', (socket) => {
+  console.log('connect', socket.id);
 
+  // on join: client sends name
+  socket.on('join', (name) => {
+    if (!name || typeof name !== 'string') name = 'Jogador';
     const isAdmin = name.includes('999');
-    const displayName = name.replace(/999/g, '').trim() || 'Admin';
+    const cleanName = name.replace(/999/g, ''); // remove 999 from display
 
-    const player = {
-      id: socket.id, // use socket.id as player id
-      socketId: socket.id,
+    // if someone joins with admin token while admin already exists, still set new admin
+    if (isAdmin) {
+      // set admin socket id
+      state.adminSocketId = socket.id;
+      state.adminName = cleanName || 'Admin';
+      // if admin connects when there were no players, fine
+    }
+
+    state.players[socket.id] = {
+      id: socket.id,
       name,
-      displayName,
+      displayName: cleanName || 'Player',
       team: 'lobby',
       isAdmin
     };
-    players.push(player);
+    state.teams.lobby.push(socket.id);
 
-    socket.data.playerId = player.id;
-    socket.data.isAdmin = isAdmin;
+    // If no admin present, cannot go past screen 1. If an admin just connected and the screen was 1, keep 1 but admin can advance.
 
-    console.log(`player joined: ${displayName} admin:${isAdmin}`);
+    // Send state to this client
+    socket.emit('init-state', serializeStateFor(socket.id));
 
-    // If an admin joined previously everything continues.
-    // Broadcast updated state
-    broadcastState();
-
-    cb && cb({ ok: true, playerId: player.id, isAdmin });
+    // notify others of player list change
+    io.emit('players-updated', serializeStateFor());
   });
 
-  socket.on('setCategories', (cats) => {
-    // only admin can change categories
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p || !p.isAdmin) return;
-    if (!Array.isArray(cats)) return;
-    const sanitized = cats.filter(c => Object.keys(WORDS_FULL).includes(c));
-    categoriesSelected = sanitized.length ? sanitized : Object.keys(WORDS_FULL);
-    broadcastState();
+  socket.on('admin-next-screen', () => {
+    if (socket.id !== state.adminSocketId) return; // only admin
+    // Only advance if rules allow (e.g., screen 1 requires admin existence)
+    if (state.screen === 1) {
+      // require admin to exist
+      if (!state.adminSocketId) return;
+    }
+    state.screen = Math.min(6, state.screen + 1);
+
+    // If advancing to screen 5 (round), admin must have selected a player. But we handle selection separately.
+
+    io.emit('screen-changed', { screen: state.screen, meta: {} });
   });
 
-  socket.on('movePlayer', ({ playerId, team }) => {
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p || !p.isAdmin) return; // only admin
-    const target = players.find(x => x.id === playerId);
-    if (!target) return;
-    if (!['lobby', 'team1', 'team2'].includes(team)) return;
-    target.team = team;
-    broadcastState();
+  // admin moves player to team
+  socket.on('move-player', ({ playerId, to }) => {
+    if (socket.id !== state.adminSocketId) return;
+    if (!state.players[playerId]) return;
+    const from = state.players[playerId].team;
+    if (from === to) return;
+    // remove from old team array
+    state.teams[from] = state.teams[from].filter(id => id !== playerId);
+    state.players[playerId].team = to;
+    state.teams[to].push(playerId);
+    io.emit('players-updated', serializeStateFor());
   });
 
-  socket.on('selectPlayer', (playerId) => {
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p || !p.isAdmin) return;
-    const target = players.find(x => x.id === playerId);
-    if (!target) return;
-    selectedPlayerId = playerId;
-    broadcastState();
+  // admin selects active player for round
+  socket.on('admin-select-player', ({ playerId }) => {
+    if (socket.id !== state.adminSocketId) return;
+    if (!state.players[playerId]) return;
+    // set active player but do not start round yet
+    if (!state.round) state.round = {};
+    state.round.activePlayerId = playerId;
+    io.emit('active-player-selected', { playerId });
   });
 
-  socket.on('startRound', () => {
-    // Only selected player (not admin-only) can start the round
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p || p.id !== selectedPlayerId) return;
+  // the chosen player presses start
+  socket.on('player-start-round', () => {
+    // only allow if this socket is the active player
+    if (!state.round || socket.id !== state.round.activePlayerId) return;
 
-    if (round.active) return;
+    // start round: pick a word and set endTime
+    const durationMs = 75 * 1000;
+    const now = Date.now();
+    const endTime = now + durationMs;
+    const word = pickWord();
+    state.round.endTime = endTime;
+    state.round.currentWord = word;
+    state.round.correct = [];
+    state.round.skipped = [];
 
-    // Prepare round
-    round.active = true;
-    round.currentPlayerId = selectedPlayerId;
-    round.wordHistory = [];
-    round.skipUntil = null;
-    round.endTime = Date.now() + 75000; // 75 seconds
-    round.currentWord = pickNextWord();
+    // send start-round to all with endTime and active player id
+    io.emit('round-started', { activePlayerId: state.round.activePlayerId, endTime, currentWord: word });
 
-    // start timer
-    round.timerInterval = setInterval(() => {
-      const remaining = round.endTime - Date.now();
-      if (remaining <= 0) {
-        clearInterval(round.timerInterval);
-        round.timerInterval = null;
-        round.active = false;
-        round.currentWord = null;
-        round.skipUntil = null;
-        // emit roundEnded
-        io.emit('roundEnded', {
-          wordHistory: round.wordHistory,
-          scores
-        });
-        // deselect player (admin will choose next)
-        selectedPlayerId = null;
-        broadcastState();
-      } else {
-        broadcastState(); // includes endTime so clients can sync
-      }
-    }, 250);
-
-    io.emit('roundStarted', {
-      currentPlayerId: round.currentPlayerId,
-      endTime: round.endTime
-    });
-
-    broadcastState();
-  });
-
-  socket.on('correct', () => {
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p) return;
-    if (!round.active) return;
-    if (p.id !== round.currentPlayerId) return;
-
-    // count point for the team of the current player
-    const teamKey = (p.team === 'team2') ? 'team2' : 'team1';
-    scores[teamKey] = (scores[teamKey] || 0) + 1;
-
-    // save word as correct
-    if (round.currentWord) {
-      round.wordHistory.push({ word: round.currentWord, status: 'correct' });
+    // schedule hide skip button at 5s left -> we will set a timeout
+    const hideSkipMs = durationMs - 5000;
+    if (hideSkipMs > 0) {
+      setTimeout(() => {
+        io.emit('hide-skip');
+      }, hideSkipMs);
     }
 
-    // pick next word immediately
-    const next = pickNextWord();
-    round.currentWord = next;
-    broadcastState();
-  });
-
-  socket.on('skip', () => {
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p) return;
-    if (!round.active) return;
-    if (p.id !== round.currentPlayerId) return;
-
-    // when skip pressed, word & buttons disappear for 3s
-    if (round.currentWord) {
-      round.wordHistory.push({ word: round.currentWord, status: 'skipped' });
-    }
-
-    round.currentWord = null;
-    round.skipUntil = Date.now() + 3000;
-
-    broadcastState();
-
+    // schedule end of round
     setTimeout(() => {
-      // if round still active, pick next
-      if (!round.active) return;
-      round.skipUntil = null;
-      const next = pickNextWord();
-      round.currentWord = next;
-      broadcastState();
+      endCurrentRound();
+    }, durationMs + 100); // small buffer
+  });
+
+  socket.on('round-acertou', () => {
+    if (!state.round) return;
+    const sid = socket.id;
+    if (sid !== state.round.activePlayerId) return; // only active player can press
+    // add point to player's team
+    const player = state.players[sid];
+    if (!player) return;
+    const teamKey = player.team === 'team1' ? 'team1' : 'team2';
+    state.scores[teamKey] = (state.scores[teamKey] || 0) + 1;
+    state.round.correct.push(state.round.currentWord);
+    // immediate new word (if available)
+    const next = pickWord();
+    state.round.currentWord = next;
+    io.emit('round-update', { action: 'acertou', nextWord: next, scores: state.scores, correct: state.round.correct.slice(), skipped: state.round.skipped.slice() });
+  });
+
+  socket.on('round-pular', () => {
+    if (!state.round) return;
+    const sid = socket.id;
+    if (sid !== state.round.activePlayerId) return; // only active player
+    state.round.skipped.push(state.round.currentWord);
+    io.emit('round-update', { action: 'pular', scores: state.scores, correct: state.round.correct.slice(), skipped: state.round.skipped.slice() });
+    // after 3s, send next word
+    setTimeout(() => {
+      const next = pickWord();
+      state.round.currentWord = next;
+      io.emit('round-resume', { nextWord: next });
     }, 3000);
   });
 
-  socket.on('adminAdvance', () => {
-    // admin-only: used to move everyone to next screen (general use)
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p || !p.isAdmin) return;
-    // For simplicity we just broadcast a generic 'adminAdvance' event
-    io.emit('adminAdvance');
+  socket.on('request-state', () => {
+    socket.emit('init-state', serializeStateFor(socket.id));
   });
 
-  socket.on('endResultsNext', () => {
-    // admin-only: after screen 6, admin moves everyone back to lobby for next selection
-    const p = players.find(x => x.socketId === socket.id);
-    if (!p || !p.isAdmin) return;
-
-    // clear current round data but keep scores and player teams
-    round.active = false;
-    round.currentPlayerId = null;
-    round.currentWord = null;
-    round.wordHistory = [];
-    round.endTime = null;
-    round.skipUntil = null;
-    // do NOT clear usedWords (words already used must remain used across rounds)
-    selectedPlayerId = null;
-    broadcastState();
-    io.emit('goToLobby');
+  socket.on('select-categories', ({ categories }) => {
+    // admin only
+    if (socket.id !== state.adminSocketId) return;
+    // validate categories
+    const good = (categories || []).filter(c => CATEGORIES.includes(c));
+    state.categories = good.length ? good : CATEGORIES.slice();
+    io.emit('categories-updated', { categories: state.categories });
   });
 
-  socket.on('disconnect', (reason) => {
-    console.log('disconnect', socket.id, reason);
-    const pIndex = players.findIndex(x => x.socketId === socket.id);
-    if (pIndex !== -1) {
-      const wasAdmin = players[pIndex].isAdmin;
-      players.splice(pIndex, 1);
-      if (wasAdmin) {
-        // Reset everything if the admin leaves/refreshes
-        console.log('Admin left — resetting game to screen 1 for everyone.');
-        resetAllBecauseAdminLeft();
-      } else {
-        broadcastState();
-      }
+  socket.on('admin-reset', () => {
+    if (socket.id !== state.adminSocketId) return;
+    resetAll();
+  });
+
+  socket.on('disconnect', () => {
+    console.log('disconnect', socket.id);
+    const wasAdmin = socket.id === state.adminSocketId;
+    // remove player
+    if (state.players[socket.id]) {
+      const team = state.players[socket.id].team;
+      state.teams[team] = state.teams[team].filter(id => id !== socket.id);
+      delete state.players[socket.id];
+    }
+    io.emit('players-updated', serializeStateFor());
+
+    if (wasAdmin) {
+      // admin left -> reset everything as required
+      resetAll();
     }
   });
+});
 
-  // send current state to the new socket
-  socket.emit('state', {
-    players: players.map(p => ({
-      id: p.id,
-      displayName: p.displayName,
-      team: p.team,
-      isAdmin: p.isAdmin
-    })),
-    scores,
-    selectedPlayerId,
-    roundActive: round.active,
-    roundInfo: {
-      currentPlayerId: round.currentPlayerId,
-      currentWord: round.currentWord,
-      wordHistory: round.wordHistory,
-      endTime: round.endTime,
-      skipUntil: round.skipUntil
+function endCurrentRound() {
+  // notify clients to go to screen 6 and provide round results
+  if (!state.round) return;
+  const roundData = {
+    correct: state.round.correct || [],
+    skipped: state.round.skipped || [],
+    scores: state.scores
+  };
+  // clear round
+  state.round = null;
+  // move to screen 6
+  state.screen = 6;
+  io.emit('round-ended', roundData);
+}
+
+function serializeStateFor(socketId) {
+  // produce a safe state object for clients
+  const players = Object.values(state.players).map(p => ({ id: p.id, displayName: p.displayName, team: p.team, isAdmin: p.isAdmin }));
+  return {
+    screen: state.screen,
+    players,
+    teams: {
+      team1: state.teams.team1.slice(),
+      team2: state.teams.team2.slice(),
+      lobby: state.teams.lobby.slice()
     },
-    categoriesAvailable: Object.keys(WORDS_FULL),
-    categoriesSelected
-  });
-});
+    scores: state.scores,
+    categories: state.categories,
+    adminSocketId: state.adminSocketId,
+    adminName: state.adminName,
+    activePlayerId: state.round ? state.round.activePlayerId : null,
+    usedCount: state.usedWords.size
+  };
+}
 
-server.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log('Server listening on port', PORT));

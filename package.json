@@ -1,13 +1,13 @@
 {
-  "name": "party-game-realtime",
+  "name": "realtime-quiz-app",
   "version": "1.0.0",
-  "description": "Jogo em tempo real com Node + Socket.IO (deploy Railway)",
+  "description": "App de jogo em tempo real com Node e Socket.IO (design mobile, inspirado em Spotify)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.8.1"
   }
 }
