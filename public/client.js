@@ -1,114 +1,86 @@
-const socket = io()
-let myId = null
-let isAdmin = false
-let currentScreen = 1
-const el = id=>document.getElementById(id)
-const switchTo = n=>{
-  currentScreen = n
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))
-  el('screen'+n).classList.add('active')
+const socket = io();
+let isAdmin = false;
+let selectedPlayer = null;
+let countdownInterval;
+
+const screens = {
+    screen1: document.getElementById('screen1'),
+    screen2: document.getElementById('screen2'),
+    screen3: document.getElementById('screen3'),
+    screen4: document.getElementById('screen4')
+};
+
+const nameInput = document.getElementById('nameInput');
+const confirmName = document.getElementById('confirmName');
+const teamsBtn = document.querySelectorAll('.teamBtn');
+const categoriesBtn = document.getElementById('categoriesBtn');
+const scoreBoard = document.getElementById('scoreBoard');
+const categoryButtons = document.getElementById('categoryButtons');
+const playerButtons = document.getElementById('playerButtons');
+const startRoundBtn = document.getElementById('startRound');
+const wordDisplay = document.getElementById('wordDisplay');
+const correctBtn = document.getElementById('correct');
+const skipBtn = document.getElementById('skip');
+const countdownEl = document.getElementById('countdown');
+const resultsEl = document.getElementById('results');
+const backToCategories = document.getElementById('backToCategories');
+
+confirmName.onclick = () => socket.emit('setName', nameInput.value);
+teamsBtn.forEach(btn => btn.onclick = () => socket.emit('joinTeam', Number(btn.dataset.team)));
+categoriesBtn.onclick = () => isAdmin && showScreen2();
+backToCategories.onclick = () => isAdmin && showScreen2();
+
+startRoundBtn.onclick = () => {
+    if (!isAdmin || !selectedPlayer) return;
+    socket.emit('startRound', {selectedPlayer});
+};
+
+correctBtn.onclick = () => socket.emit('correct', socket.id);
+skipBtn.onclick = () => socket.emit('skip', socket.id);
+
+function showScreen(name) {
+    Object.values(screens).forEach(s => s.classList.add('hidden'));
+    screens[name].classList.remove('hidden');
 }
-el('confirmName').onclick = ()=>{
-  const name = el('nameInput').value.trim()
-  if(!name) return alert('Digite um nome')
-  socket.emit('join', name)
+
+function showScreen2() {
+    showScreen('screen2');
 }
-el('team1').onclick = ()=>socket.emit('chooseTeam',1)
-el('team2').onclick = ()=>socket.emit('chooseTeam',2)
-el('btnCategorias').onclick = ()=>{ switchTo(2); socket.emit('requestState') }
-el('backCategorias').onclick = ()=>{ switchTo(2); socket.emit('requestState') }
-socket.on('joined', data=>{
-  myId = data.id
-  isAdmin = data.isAdmin
-  el('nameInput').value = data.name
-  switchTo(1)
-})
-socket.on('players', list=>{
-  const wrap = el('playersList')
-  wrap.innerHTML = ''
-  const playerButtons = el('playersButtons')
-  playerButtons.innerHTML = ''
-  list.forEach(p=>{
-    const div = document.createElement('div')
-    div.className = 'playerItem'
-    div.innerHTML = `<div>${p.name}${p.isAdmin? ' • admin':''}</div><div>${p.team?('E'+p.team):'—'}</div>`
-    wrap.appendChild(div)
-    const btn = document.createElement('button')
-    btn.textContent = p.name
-    btn.disabled = !(isAdmin)
-    btn.onclick = ()=>socket.emit('selectPlayer', p.id)
-    playerButtons.appendChild(btn)
-  })
-})
-socket.on('state', s=>{
-  el('score1').textContent = s.scores.team1
-  el('score2').textContent = s.scores.team2
-  document.querySelectorAll('.categories button').forEach(b=>{
-    b.classList.toggle('selected', b.dataset.cat === s.selectedCategory)
-    b.disabled = !(isAdmin) || s.roundActive
-    b.onclick = ()=>socket.emit('selectCategory', b.dataset.cat)
-  })
-  document.querySelectorAll('.playersButtons button').forEach(b=>b.disabled = !(isAdmin) || s.roundActive)
-  el('startRound').disabled = !(isAdmin) || s.roundActive
-})
-el('startRound').onclick = ()=>socket.emit('startRound')
-socket.on('roundStarted', data=>{
-  if(myId === data.selectedPlayerId){
-    switchTo(3)
-    el('controls').style.display = 'flex'
-    el('othersNotice').style.display = 'none'
-  } else {
-    switchTo(3)
-    el('controls').style.display = 'none'
-    el('othersNotice').style.display = 'block'
-  }
-})
-socket.on('timer', t=>{
-  el('timer').textContent = t
-})
-socket.on('word', w=>{
-  if(w === null){
-    el('wordArea').textContent = 'Sem mais palavras nesta categoria'
-    el('btnAcertou').disabled = true
-    el('btnPular').disabled = true
-    return
-  }
-  el('wordArea').textContent = w
-  el('btnAcertou').disabled = false
-  el('btnPular').disabled = false
-})
-el('btnAcertou').onclick = ()=>socket.emit('acertou')
-el('btnPular').onclick = ()=>socket.emit('pular')
-socket.on('puling', ()=>{
-  el('wordArea').textContent = 'pulando...'
-  el('btnAcertou').disabled = true
-  el('btnPular').disabled = true
-})
-socket.on('scores', s=>{
-  el('score1').textContent = s.team1
-  el('score2').textContent = s.team2
-})
-socket.on('updateUsed', arr=>{
-})
-socket.on('roundEnded', data=>{
-  const results = el('results')
-  results.innerHTML = ''
-  data.summary.forEach(item=>{
-    const div = document.createElement('div')
-    div.className = 'resultItem ' + (item.status==='skipped'?'red':'green')
-    div.innerHTML = `<div class="word">${item.word}</div><div>${item.status==='skipped'?'pulada':'acertada'}</div>`
-    results.appendChild(div)
-  })
-  switchTo(4)
-  el('score1').textContent = data.scores.team1
-  el('score2').textContent = data.scores.team2
-})
-socket.on('reset', ()=>{
-  alert('Admin reiniciou o jogo. Voltando para tela inicial.')
-  location.reload()
-})
-window.addEventListener('beforeunload', e=>{
-  e.preventDefault()
-  e.returnValue = ''
-})
-socket.emit('requestState')
+
+socket.on('isAdmin', () => isAdmin = true);
+
+socket.on('updatePlayers', (players, teams, scores) => {
+    scoreBoard.textContent = `Placar: 1 - ${scores[1]} | 2 - ${scores[2]}`;
+    playerButtons.innerHTML = '';
+    Object.keys(players).forEach(id => {
+        const btn = document.createElement('button');
+        btn.textContent = players[id].name;
+        btn.onclick = () => isAdmin ? selectedPlayer = id : null;
+        playerButtons.appendChild(btn);
+    });
+});
+
+socket.on('categorySelected', category => console.log('Categoria:', category));
+
+socket.on('roundStarted', playerId => {
+    if (socket.id === playerId) showScreen('screen3');
+    else showScreen('screen3');
+    let time = 75;
+    countdownEl.textContent = time;
+    countdownInterval = setInterval(() => {
+        time--;
+        countdownEl.textContent = time;
+        if (time <= 0) clearInterval(countdownInterval);
+    }, 1000);
+});
+
+socket.on('showWord', word => wordDisplay.textContent = word);
+socket.on('skipping', () => wordDisplay.textContent = 'Pulando...');
+socket.on('updateScores', scores => scoreBoard.textContent = `Placar: 1 - ${scores[1]} | 2 - ${scores[2]}`);
+socket.on('roundEnded', () => showScreen('screen4'));
+socket.on('reset', () => showScreen('screen1'));
+
+window.addEventListener('beforeunload', e => {
+    e.preventDefault();
+    e.returnValue = '';
+});
