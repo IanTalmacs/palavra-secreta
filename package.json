@@ -1,12 +1,16 @@
 {
-  "name": "jogo-realtime",
+  "name": "jogo-palavras",
   "version": "1.0.0",
+  "description": "Jogo de palavras em tempo real",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
