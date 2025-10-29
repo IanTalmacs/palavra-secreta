@@ -1,8 +1,8 @@
 {
-  "name": "jogo-categorias",
+  "name": "fast-guess-game",
   "version": "1.0.0",
+  "description": "Jogo de adivinhação em tempo real com Node e Socket.IO - mobile friendly",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js"
   },

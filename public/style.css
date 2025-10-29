@@ -1,33 +1,63 @@
-body {
-  font-family: Arial, sans-serif;
-  background: #121212;
-  color: #fff;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+:root{
+  --bg:#191414; /* spotify-like dark */
+  --card:#121212;
+  --accent:#1DB954; /* spotify green */
+  --muted:#b3b3b3;
+  --danger:#e74c3c;
+  --success:#2ecc71;
+  --glass: rgba(255,255,255,0.03);
+  --large: 22px;
 }
-#app {
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
+
+*{box-sizing:border-box}
+html,body,#app{height:100%; margin:0; font-family:Inter,system-ui,Helvetica,Arial; background:var(--bg); color:#fff}
+main{padding:16px; max-width:520px; margin:0 auto}
+.screen{display:none}
+.screen.active{display:block}
+
+/* Card */
+.card{background:var(--card); padding:16px; border-radius:14px; box-shadow: 0 6px 18px rgba(0,0,0,0.6)}
+.brand{font-size:28px; margin:8px 0 16px; color:var(--accent); text-align:center}
+
+/* Inputs and buttons */
+input{width:100%; padding:14px; font-size:18px; border-radius:10px; border:0; background:var(--glass); color:#fff; margin:8px 0}
+button{font-size:18px; padding:12px 16px; border-radius:12px; border:0; cursor:pointer}
+.primary{background:var(--accent); color:#000; font-weight:700}
+.large{width:100%; font-size:20px; padding:14px}
+.ghost{background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.03); padding:8px 10px; border-radius:10px}
+.team-row{display:flex; gap:8px; margin:8px 0}
+.team-btn{flex:1; padding:12px; border-radius:10px; background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+
+/* Categories grid */
+.grid-cats{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px}
+.cat{padding:18px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); text-align:center; font-size:18px; font-weight:600}
+.top-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px}
+.score{font-size:16px}
+
+/* players list */
+.players-list{display:flex; flex-direction:column; gap:8px}
+.player-btn{padding:14px; border-radius:12px; text-align:left; font-size:18px; background:rgba(255,255,255,0.03)}
+
+/* center word */
+.center{display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh}
+.large-word{font-size:40px; font-weight:800; text-align:center; padding:20px}
+.timer{font-size:18px; background:rgba(255,255,255,0.02); padding:8px 12px; border-radius:10px}
+.timer-big{font-size:48px; font-weight:800; margin:20px 0}
+
+/* circular big buttons */
+.controls-row{display:flex; gap:18px; justify-content:center; margin-top:20px}
+.circle{width:140px; height:140px; border-radius:50%; font-size:18px; display:flex; align-items:center; justify-content:center; font-weight:700}
+.green{background:var(--success); color:#fff}
+.red{background:var(--danger); color:#fff}
+
+/* results */
+.results{padding:8px}
+.results h3{margin:8px 0; color:var(--muted)}
+.results ul{list-style:none; padding:0; margin:0 0 12px}
+
+/* mobile tuning */
+@media(min-width:520px){
+  main{padding:24px}
+  .grid-cats{grid-template-columns:repeat(3,1fr)}
+  .circle{width:120px; height:120px}
 }
-button {
-  background: #1db954;
-  color: #fff;
-  border: none;
-  padding: 15px;
-  margin: 10px;
-  border-radius: 50px;
-  font-size: 1.2em;
-  width: 80%;
-}
-button.red { background: #e91429; }
-button.small { font-size: 1em; padding: 10px; width: auto; }
-h1, h2 { margin: 20px 0; }
-.category { display: flex; flex-wrap: wrap; justify-content: center; }
-.category button { width: 45%; margin: 5px; }
-.word { font-size: 2em; margin: 20px 0; }
-.green { color: #1db954; }
-.red { color: #e91429; }
