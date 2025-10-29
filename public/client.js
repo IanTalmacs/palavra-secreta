@@ -1,149 +1,159 @@
-const socket = io();
-let name = "";
-let myId = null;
-let admin = null;
-let screen = 1;
-let selectedPlayer = null;
-let timeLeft = 0;
-let scores = {1:0,2:0};
-let currentWord = "";
-let results = [];
+const socket = io()
+let me = {}, screen = 1, roundWords = [], skippedWords = [], countdown
+window.onbeforeunload = () => 'Tem certeza que quer sair?'
 
-window.onbeforeunload = () => "Sair irá reiniciar o jogo.";
+const app = document.getElementById('app')
 
-const app = document.getElementById('app');
-
-function render(state) {
-  app.innerHTML = "";
-  admin = state.admin;
-  screen = state.screen;
-  scores = state.scores || {1:0,2:0};
-  if (screen === 1) renderScreen1(state);
-  else if (screen === 2) renderScreen2();
-  else if (screen === 3) renderScreen3(state);
-  else if (screen === 4) renderScreen4(state);
-  else if (screen === 5) renderScreen5(state);
-}
-
-function renderScreen1(state){
-  const input = document.createElement('input');
-  input.placeholder = "Digite seu nome";
-  const btn = document.createElement('button');
-  btn.textContent = "Entrar";
-  btn.onclick = () => {
-    name = input.value.trim();
-    if(name){
-      socket.emit('join', name);
-      myId = socket.id;
+function render() {
+  if (screen === 1) {
+    app.innerHTML = `
+      <h2>Escolha seu nome e equipe</h2>
+      <input id="name" placeholder="Nome" style="font-size:1.2rem;padding:10px">
+      <div>
+        <button onclick="join(1)">Equipe 1</button>
+        <button onclick="join(2)">Equipe 2</button>
+      </div>
+    `
+  }
+  if (screen === 2) {
+    app.innerHTML = `<div id="score">Equipe 1: ${me.scores?.team1 || 0} | Equipe 2: ${me.scores?.team2 || 0}</div><div id="cats"></div>`
+    if (me.isAdmin) {
+      socket.emit('getCategories')
     }
-  };
-  app.append(input, btn);
-  if(Object.keys(state.players).length>0){
-    const t1 = document.createElement('div');
-    const t2 = document.createElement('div');
-    t1.innerHTML = "<h2>Equipe 1</h2>";
-    t2.innerHTML = "<h2>Equipe 2</h2>";
-    state.teams[1].forEach(p=>{t1.innerHTML+=`<div>${state.players[p].name}</div>`});
-    state.teams[2].forEach(p=>{t2.innerHTML+=`<div>${state.players[p].name}</div>`});
-    t1.onclick = ()=>socket.emit('joinTeam',1);
-    t2.onclick = ()=>socket.emit('joinTeam',2);
-    app.append(t1,t2);
   }
-  if(socket.id===admin){
-    const cat = document.createElement('button');
-    cat.textContent = "Categorias";
-    cat.onclick = ()=>socket.emit('showCategories');
-    app.append(cat);
+  if (screen === 3 && me.isAdmin) {
+    app.innerHTML = `<h2>Jogadores</h2><div id="players"></div>`
+    renderPlayers()
   }
 }
 
-function renderScreen2(){
-  const score = document.createElement('h2');
-  score.textContent = `Equipe 1: ${scores[1]} | Equipe 2: ${scores[2]}`;
-  app.append(score);
-  const cats = ["animais","tv e cinema","objetos","lugares","pessoas","esportes e jogos","profissões","alimentos","personagens","bíblico"];
-  cats.forEach(c=>{
-    const b=document.createElement('div');
-    b.className="category";
-    b.textContent=c;
-    if(socket.id===admin) b.onclick=()=>socket.emit('selectCategory',c);
-    app.append(b);
-  });
+function join(team) {
+  const name = document.getElementById('name').value
+  if (!name) return
+  socket.emit('join', { name, team })
+  me.team = 'team' + team
+  screen = 2
+  render()
 }
 
-function renderScreen3(state){
-  for(let id in state.players){
-    const b=document.createElement('button');
-    b.textContent=state.players[id].name;
-    if(socket.id===admin) b.onclick=()=>socket.emit('choosePlayer',id);
-    app.append(b);
+socket.on('players', players => {
+  me.players = players
+  renderPlayers()
+})
+
+function renderPlayers() {
+  if (!me.isAdmin) return
+  const div = document.getElementById('players')
+  if (!div) return
+  div.innerHTML = ''
+  Object.entries(me.players).forEach(([id, p]) => {
+    div.innerHTML += `<button class="player-btn" onclick="choosePlayer('${id}')">${p.name}</button>`
+  })
+}
+
+function choosePlayer(id) {
+  socket.emit('choosePlayer', id)
+}
+
+socket.on('categories', cats => {
+  const div = document.getElementById('cats')
+  cats.forEach(c => {
+    div.innerHTML += `<button class="category" onclick="chooseCategory('${c}')">${c}</button>`
+  })
+})
+
+function chooseCategory(cat) {
+  socket.emit('chooseCategory', cat)
+  screen = 3
+  render()
+}
+
+socket.on('categoryChosen', cat => {
+  if (!me.isAdmin) screen = 3
+  render()
+})
+
+socket.on('playerChosen', id => {
+  if (id === socket.id) {
+    app.innerHTML = `<button onclick="startRound()">Iniciar</button>`
+  }
+})
+
+function startRound() {
+  socket.emit('startRound')
+}
+
+socket.on('roundStarted', id => {
+  if (id === socket.id) startPlayerRound()
+  else startSpectatorRound()
+})
+
+function startPlayerRound() {
+  screen = 4
+  roundWords = []
+  skippedWords = []
+  let time = 75
+  app.innerHTML = `<div id="timer">${time}</div><div id="word" class="word"></div><button class="green" id="correct">Acertou</button><button class="red" id="skip">Pular</button>`
+  socket.emit('getWord')
+  countdown = setInterval(() => {
+    time--
+    document.getElementById('timer').innerText = time
+    if (time <= 0) {
+      clearInterval(countdown)
+      socket.emit('endRound')
+    }
+  }, 1000)
+  document.getElementById('correct').onclick = () => {
+    roundWords.push(document.getElementById('word').innerText)
+    socket.emit('correct', me.team)
+    socket.emit('getWord')
+  }
+  document.getElementById('skip').onclick = () => {
+    const w = document.getElementById('word').innerText
+    skippedWords.push(w)
+    document.getElementById('word').innerText = 'Pulando...'
+    setTimeout(() => socket.emit('getWord'), 3000)
   }
 }
 
-function renderScreen4(state){
-  const t=document.createElement('div');
-  t.textContent=`Tempo: ${timeLeft}s`;
-  t.id="timer";
-  app.append(t);
-  if(socket.id===selectedPlayer){
-    const w=document.createElement('div');
-    w.className='word';
-    w.textContent=currentWord;
-    app.append(w);
-    const ok=document.createElement('button');
-    ok.textContent='Acertou';
-    ok.onclick=()=>socket.emit('correct');
-    const skip=document.createElement('button');
-    skip.textContent='Pular';
-    skip.className='red';
-    skip.onclick=()=>socket.emit('skip');
-    app.append(ok,skip);
-  }
+socket.on('newWord', word => {
+  const w = document.getElementById('word')
+  if (w) w.innerText = word
+})
+
+function startSpectatorRound() {
+  screen = 4
+  let time = 75
+  app.innerHTML = `<div id="timer">${time}</div>`
+  countdown = setInterval(() => {
+    time--
+    document.getElementById('timer').innerText = time
+    if (time <= 0) clearInterval(countdown)
+  }, 1000)
 }
 
-function renderScreen5(state){
-  state.results.forEach(r=>{
-    const d=document.createElement('div');
-    d.textContent=r.word;
-    d.className=r.correct?'green':'red';
-    app.append(d);
-  });
-  const b=document.createElement('button');
-  b.textContent='Categorias';
-  b.onclick=()=>socket.emit('backToCategories');
-  app.append(b);
+socket.on('updateScore', s => {
+  me.scores = s
+})
+
+socket.on('roundEnded', () => {
+  clearInterval(countdown)
+  screen = 5
+  app.innerHTML = `<h2>Resultados</h2>`
+  roundWords.forEach(w => app.innerHTML += `<div class="green">${w}</div>`)
+  skippedWords.forEach(w => app.innerHTML += `<div class="red">${w}</div>`)
+  if (me.isAdmin) app.innerHTML += `<button onclick="goCategories()">Categorias</button>`
+})
+
+function goCategories() {
+  screen = 2
+  render()
 }
 
-socket.on('state', render);
-socket.on('playerChosen', pid=>{
-  selectedPlayer=pid;
-  if(socket.id===pid){
-    const start=document.createElement('button');
-    start.textContent="Iniciar";
-    start.onclick=()=>socket.emit('startRound');
-    app.innerHTML='';
-    app.append(start);
-  }
-});
-socket.on('roundStart', data=>{
-  currentWord=data.currentWord;
-  timeLeft=data.timeLeft;
-  render({screen:4});
-});
-socket.on('newWord', data=>{
-  currentWord=data.currentWord;
-  scores=data.scores;
-  render({screen:4});
-});
-socket.on('skipping', ()=>{
-  app.innerHTML='<h1>Pulando...</h1>';
-});
-socket.on('timer', t=>{
-  timeLeft=t;
-  const el=document.getElementById('timer');
-  if(el) el.textContent=`Tempo: ${timeLeft}s`;
-});
-socket.on('showResults', data=>{
-  render(data);
-});
-socket.on('reset', ()=>location.reload());
+socket.on('resetAll', () => {
+  screen = 1
+  me = {}
+  render()
+})
+
+render()

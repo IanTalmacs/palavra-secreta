@@ -1,40 +1,23 @@
 body {
-  background: #121212;
-  color: #fff;
   font-family: Arial, sans-serif;
   text-align: center;
+  background: #121212;
+  color: white;
   margin: 0;
-  padding: 0;
 }
 button {
-  background: #1db954;
-  color: white;
-  border: none;
-  border-radius: 30px;
+  font-size: 1.5rem;
   padding: 15px 25px;
   margin: 10px;
-  font-size: 1.2em;
-  cursor: pointer;
-}
-button.red { background: #e63946; }
-#app { padding: 20px; }
-input {
-  padding: 10px;
-  border-radius: 30px;
   border: none;
-  width: 80%;
-  font-size: 1.2em;
-  text-align: center;
+  border-radius: 50px;
+  color: white;
+  background: #1DB954;
 }
-.category {
-  background: #282828;
-  border-radius: 20px;
-  padding: 15px;
-  margin: 10px;
-}
-.word {
-  font-size: 2em;
-  margin: 40px 0;
-}
-.green { color: #1db954; }
-.red { color: #e63946; }
+button.red { background: #E02424; }
+#timer { font-size: 3rem; margin: 20px; }
+.category, .player-btn { display: block; margin: 10px auto; font-size: 1.3rem; width: 80%; }
+.word { font-size: 2.5rem; margin: 30px 0; }
+#score { font-size: 1.5rem; margin: 20px; }
+.green { color: #1DB954; }
+.red { color: #E02424; }
