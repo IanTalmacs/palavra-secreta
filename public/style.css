@@ -20,6 +20,11 @@ html,body {
   margin:0 auto;
   padding:16px;
 }
+
+/* <-- FIX: esconder todas as telas por padrão; mostrar apenas a tela 1 inicialmente --> */
+.screen { display: none; }
+#screen-1 { display: flex; justify-content: center; align-items: center; }
+
 .center {
   display:flex;
   justify-content:center;
