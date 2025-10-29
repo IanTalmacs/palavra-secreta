@@ -1,218 +1,221 @@
-// public/client.js
 const socket = io();
+
 let myId = null;
 let amAdmin = false;
-let currentScreen = 1;
-let chosenId = null;
-let localIsChooser = false;
-let skipHidden = false;
-let skipTimeout = null;
-const el = (id) => document.getElementById(id);
-function showScreen(n) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-  const s = el('screen-' + n);
-  if (s) s.classList.remove('hidden');
-  currentScreen = n;
+let currentScreen = 'screen-1';
+let clientState = null;
+
+function $(sel){return document.querySelector(sel)}
+function $all(sel){return Array.from(document.querySelectorAll(sel))}
+
+function showScreen(id){
+  currentScreen = id;
+  $all('.screen').forEach(s => s.classList.remove('active'));
+  const el = $(`#${id}`);
+  if (el) el.classList.add('active');
 }
-el('confirmName').addEventListener('click', () => {
-  const name = el('nameInput').value.trim();
-  if (!name) return;
-  socket.emit('join', name);
-  showScreen(2);
-});
-el('categoriesBtn').addEventListener('click', () => {
-  socket.emit('startCategories');
-});
-el('finalizarBtn').addEventListener('click', () => {
-  el('confirmModal').classList.remove('hidden');
-});
-el('confirmNo').addEventListener('click', () => {
-  el('confirmModal').classList.add('hidden');
-});
-el('confirmYes').addEventListener('click', () => {
-  el('confirmModal').classList.add('hidden');
-  socket.emit('finalizeGame', true);
-});
-el('advanceBtn').addEventListener('click', () => {
-  socket.emit('advanceAfterTurn');
-});
-el('startBtn').addEventListener('click', () => {
-  socket.emit('startTurn');
-});
-el('correctBtn').addEventListener('click', () => {
-  socket.emit('correct');
-});
-el('skipBtn').addEventListener('click', () => {
-  socket.emit('skip');
-});
+
 window.addEventListener('beforeunload', (e) => {
   e.preventDefault();
   e.returnValue = '';
 });
-socket.on('joined', (id) => {
+
+$('#confirmName').addEventListener('click', () => {
+  const name = $('#nameInput').value.trim();
+  if (!name) return;
+  socket.emit('join', name);
+  showScreen('screen-2');
+});
+
+socket.on('joined', ({id, isAdmin}) => {
   myId = id;
+  amAdmin = isAdmin;
+  refreshAdminUI();
 });
-socket.on('joinedAsAdmin', () => {
-  amAdmin = true;
+
+socket.on('state', (st) => {
+  clientState = st;
+  updateUIFromState(st);
 });
-socket.on('state', (s) => {
-  renderState(s);
-});
-socket.on('prepareChooser', ({ chooserId, chooserName }) => {
-  el('chooserName').textContent = chooserName;
-  showScreen(4);
-});
-socket.on('turnStarted', ({ chooserId }) => {
-  if (myId === chooserId) {
-    localIsChooser = true;
-    showScreen(5);
-    el('actionButtons').classList.remove('hidden');
-  } else {
-    localIsChooser = false;
-    showScreen(5bScreenId());
+
+socket.on('goto', ({screen, activePlayerId, team}) => {
+  if (screen === 'categories') showScreen('screen-3');
+  else if (screen === 'prepare') {
+    // show screen 4
+    showScreen('screen-4');
+    const ap = activePlayerId;
+    const player = (clientState && clientState.players.find(p=>p.id===ap)) || {};
+    $('#prepareText').textContent = `preparar ${player.displayName || ''}`;
+    if (myId === ap) {
+      $('#startBtn').style.display = 'inline-block';
+    } else {
+      $('#startBtn').style.display = 'none';
+    }
   }
 });
-socket.on('newWord', (w) => {
-  if (w) {
-    el('wordBox').textContent = w;
-    el('wordBox').classList.remove('hidden');
-    el('actionButtons').classList.remove('hidden');
-  } else {
-    el('wordBox').textContent = '...';
+
+socket.on('new-word', ({word}) => {
+  showScreen('screen-5a');
+  $('#timerTop').textContent = clientState && clientState.currentTurn ? clientState.currentTurn.timeLeft : '75';
+  $('#wordBox').textContent = word;
+  $('#btnPular').style.display = 'inline-flex';
+});
+
+socket.on('skip', () => {
+  // hide word/buttons for 3s (server also triggers)
+  $('#wordBox').textContent = 'pulando...';
+  $('#btnPular').style.display = 'none';
+  $('#btnAcertou').style.display = 'none';
+});
+
+socket.on('time-update', ({timeLeft}) => {
+  if (currentScreen === 'screen-5a') $('#timerTop').textContent = timeLeft;
+  if (currentScreen === 'screen-5b') $('#timerOnly').textContent = timeLeft;
+  // if time is low, hide pular on clients
+  if (timeLeft <= 5) {
+    $('#btnPular').style.display = 'none';
   }
 });
-socket.on('skipping', () => {
-  el('wordBox').textContent = 'pulando...';
-  el('actionButtons').classList.add('hidden');
+
+socket.on('time-is-five', () => {
+  $('#btnPular').style.display = 'none';
 });
-socket.on('time', (t) => {
-  el('timerLarge') && (el('timerLarge').textContent = t);
-  el('timerOnly') && (el('timerOnly').textContent = t);
-  if (t <= 5) {
-    skipHidden = true;
-    el('skipBtn') && (el('skipBtn').style.display = 'none');
-  } else {
-    skipHidden = false;
-    el('skipBtn') && (el('skipBtn').style.display = '');
+
+socket.on('turn-ended', (result) => {
+  showScreen('screen-6');
+  const correctList = $('#correctList');
+  const skippedList = $('#skippedList');
+  correctList.innerHTML = '';
+  skippedList.innerHTML = '';
+  for (const w of result.correctWords) {
+    const li = document.createElement('li'); li.textContent = w; li.className = 'correct'; correctList.appendChild(li);
+  }
+  for (const w of result.skippedWords) {
+    const li = document.createElement('li'); li.textContent = w; li.className = 'skipped'; skippedList.appendChild(li);
   }
 });
-socket.on('noMoreWords', () => {
-  el('wordBox').textContent = '';
-  el('actionButtons').classList.add('hidden');
+
+socket.on('no-more-words', () => {
+  $('#wordBox').textContent = 'sem palavras';
 });
-socket.on('state', (s) => {
-  renderState(s);
+
+socket.on('confirm-finish', () => {
+  $('#confirmModal').classList.add('show');
 });
-function pItem(id, name) {
-  const li = document.createElement('li');
-  li.className = 'player-item';
-  li.draggable = true;
-  li.dataset.id = id;
-  li.textContent = name;
-  li.addEventListener('dragstart', (ev) => {
-    ev.dataTransfer.setData('text/plain', id);
-    li.classList.add('dragging');
-  });
-  li.addEventListener('dragend', () => {
-    li.classList.remove('dragging');
-  });
-  return li;
-}
-function renderState(s) {
-  el('scoreboard').textContent = `Equipe1 ${s.scores.team1} — Equipe2 ${s.scores.team2}`;
-  renderLobbyAndTeams(s);
-  renderCategories(s);
-  if (s.screen === 1) showScreen(1);
-  if (s.screen === 2) showScreen(2);
-  if (s.screen === 3) showScreen(3);
-  if (s.screen === 7) {
-    showScreen(7);
-    el('finalScores').innerHTML = `<div>Equipe1: ${s.scores.team1}</div><div>Equipe2: ${s.scores.team2}</div>`;
+
+socket.on('game-over', ({teamScores}) => {
+  $('#final1').textContent = teamScores.team1 || 0;
+  $('#final2').textContent = teamScores.team2 || 0;
+  showScreen('screen-final');
+});
+
+socket.on('reset', () => {
+  // all go to screen 1
+  showScreen('screen-1');
+  myId = null;
+  amAdmin = false;
+  clientState = null;
+  refreshAdminUI();
+});
+
+// UI interactions
+$('#categoriesBtn').addEventListener('click', () => socket.emit('start-categories'));
+$('#finalizarBtn').addEventListener('click', () => socket.emit('finalizar'));
+$('#confirmNo').addEventListener('click', () => {
+  $('#confirmModal').classList.remove('show');
+});
+$('#confirmYes').addEventListener('click', () => {
+  $('#confirmModal').classList.remove('show');
+  socket.emit('confirm-finish', true);
+});
+$('#advanceBtn').addEventListener('click', () => socket.emit('advance-after-turn'));
+$('#startBtn').addEventListener('click', () => socket.emit('start-turn'));
+$('#btnAcertou').addEventListener('click', () => socket.emit('acertou'));
+$('#btnPular').addEventListener('click', () => socket.emit('pular'));
+
+// drag and drop for admin
+document.addEventListener('dragstart', (e) => {
+  const id = e.target.getAttribute('data-id');
+  if (id) {
+    e.dataTransfer.setData('text/plain', id);
   }
-  if (s.screen === 6) {
-    showScreen(6);
-    const list = el('resultsList');
-    list.innerHTML = '';
-    s.turnWords.correct.forEach(w => {
-      const d = document.createElement('div');
-      d.className = 'result-word result-correct';
-      d.textContent = w;
-      list.appendChild(d);
-    });
-    s.turnWords.skipped.forEach(w => {
-      const d = document.createElement('div');
-      d.className = 'result-word result-skipped';
-      d.textContent = w;
-      list.appendChild(d);
-    });
-  }
-}
-function renderLobbyAndTeams(s) {
-  const lobby = el('lobbyList');
-  const t1 = el('team1List');
-  const t2 = el('team2List');
-  lobby.innerHTML = '';
-  t1.innerHTML = '';
-  t2.innerHTML = '';
-  s.lobby.forEach(id => {
-    const name = s.players[id]?.name || 'Jogador';
-    lobby.appendChild(pItem(id, name));
-  });
-  s.teams.team1.forEach(id => {
-    const name = s.players[id]?.name || 'Jogador';
-    t1.appendChild(pItem(id, name));
-  });
-  s.teams.team2.forEach(id => {
-    const name = s.players[id]?.name || 'Jogador';
-    t2.appendChild(pItem(id, name));
-  });
-  addDnD(lobby, 'lobby');
-  addDnD(t1, 'team1');
-  addDnD(t2, 'team2');
-  if (!s.isAdmin) {
-    el('categoriesBtn').style.display = 'none';
-    el('finalizarBtn').style.display = 'none';
-  } else {
-    el('categoriesBtn').style.display = '';
-    el('finalizarBtn').style.display = '';
-  }
-}
-function addDnD(container, team) {
-  container.querySelectorAll('.player-item').forEach(item => {
-    item.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', item.dataset.id);
-    });
-  });
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault();
-  });
-  container.addEventListener('drop', (e) => {
+});
+$all('.dropzone').forEach(z => {
+  z.addEventListener('dragover', (e) => e.preventDefault());
+  z.addEventListener('drop', (e) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
-    socket.emit('movePlayer', { playerId: id, toTeam: team });
+    const team = z.getAttribute('data-team');
+    if (id && team) socket.emit('assign-team', { playerId: id, team });
   });
-}
-function renderCategories(s) {
-  const grid = el('categoriesGrid');
-  grid.innerHTML = '';
-  s.categories.forEach(cat => {
-    const d = document.createElement('div');
-    d.className = 'category';
-    d.textContent = cat;
-    d.addEventListener('click', () => {
-      if (!s.isAdmin) return;
-      socket.emit('selectCategory', cat);
+});
+
+// render helpers
+function updateUIFromState(st) {
+  // players lists
+  const lobby = $('#lobbyList');
+  const t1 = $('#team1List');
+  const t2 = $('#team2List');
+  lobby.innerHTML = ''; t1.innerHTML = ''; t2.innerHTML = '';
+
+  (st.players || []).forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'player draggable';
+    div.setAttribute('data-id', p.id);
+    div.setAttribute('draggable', amAdmin ? 'true' : 'false');
+    div.innerHTML = `<span class="name">${escapeHtml(p.displayName)}</span>`;
+    if (p.team === 'lobby') lobby.appendChild(div);
+    else if (p.team === 'team1') t1.appendChild(div);
+    else if (p.team === 'team2') t2.appendChild(div);
+  });
+
+  $('#score1').textContent = (st.teamScores && st.teamScores.team1) || 0;
+  $('#score2').textContent = (st.teamScores && st.teamScores.team2) || 0;
+
+  // categories
+  const catGrid = $('#categoriesGrid');
+  catGrid.innerHTML = '';
+  const mapping = {
+    animais: 'animais',
+    tv_cinema: 'tv e cinema',
+    objetos: 'objetos',
+    lugares: 'lugares',
+    pessoas: 'pessoas',
+    esportes_jogos: 'esportes e jogos',
+    profissoes: 'profissões',
+    alimentos: 'alimentos',
+    personagens: 'personagens',
+    biblico: 'bíblico'
+  };
+  (st.categoriesRemaining || []).forEach(key => {
+    const btn = document.createElement('div');
+    btn.className = 'cat';
+    btn.textContent = mapping[key] || key;
+    btn.addEventListener('click', () => {
+      if (!amAdmin) return;
+      socket.emit('select-category', key);
     });
-    grid.appendChild(d);
+    catGrid.appendChild(btn);
   });
+
+  // update which screen to show based on server provided context
+  if (st.currentCategory === null && currentScreen === 'screen-3') {
+    // stay in categories
+  }
 }
-function p5Screen() {
-  return amAdmin ? 5 : 5;
+
+function refreshAdminUI(){
+  if (amAdmin) {
+    $('#categoriesBtn').style.display = 'inline-block';
+    $('#finalizarBtn').style.display = 'inline-block';
+    $all('.player').forEach(el => el.setAttribute('draggable','true'));
+  } else {
+    $('#categoriesBtn').style.display = 'none';
+    $('#finalizarBtn').style.display = 'none';
+    $all('.player').forEach(el => el.setAttribute('draggable','false'));
+  }
 }
-function p5bScreenId() {
-  return 5 + 'b'.replace('b','b') ? 5 : 5;
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
-setInterval(() => {
-  socket.emit('requestState');
-}, 1000);
-socket.emit('requestState');
