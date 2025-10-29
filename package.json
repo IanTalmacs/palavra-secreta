@@ -1,7 +1,6 @@
 {
-  "name": "realtime-word-game",
+  "name": "multiplayer-wordgame",
   "version": "1.0.0",
-  "description": "Multiplayer realtime word game with Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -1,20 +1,96 @@
+<!-- public/index.html -->
 <!doctype html>
-<html lang="pt-BR">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-  <title>Game</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title></title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
-    <!-- top score bar -->
-    <div id="scorebar">Team 1: <span id="score1">0</span> — Team 2: <span id="score2">0</span></div>
-
-    <div id="screen-container"></div>
+<div id="app">
+  <div id="scoreboard"></div>
+  <div id="screens">
+    <div class="screen" id="screen-1">
+      <div class="card center">
+        <input id="nameInput" type="text" placeholder="Seu nome" autocomplete="off">
+        <button id="confirmName" class="btn green large">Confirmar</button>
+      </div>
+    </div>
+    <div class="screen" id="screen-2">
+      <div class="lobby-layout">
+        <div class="section">
+          <h3>Lobby</h3>
+          <ul id="lobbyList" class="player-list"></ul>
+        </div>
+        <div class="section">
+          <h3>Equipe 1</h3>
+          <ul id="team1List" class="player-list droppable"></ul>
+        </div>
+        <div class="section">
+          <h3>Equipe 2</h3>
+          <ul id="team2List" class="player-list droppable"></ul>
+        </div>
+      </div>
+      <div class="center">
+        <button id="categoriesBtn" class="btn green large">Categorias</button>
+      </div>
+    </div>
+    <div class="screen" id="screen-3">
+      <div class="categories-grid" id="categoriesGrid"></div>
+      <div class="center">
+        <button id="finalizarBtn" class="btn purple large">Finalizar</button>
+      </div>
+    </div>
+    <div class="screen" id="screen-4">
+      <div class="center">
+        <div id="prepareText" class="prepare">Preparar <span id="chooserName"></span></div>
+        <button id="startBtn" class="btn green large">Iniciar</button>
+      </div>
+    </div>
+    <div class="screen" id="screen-5a">
+      <div class="center">
+        <div id="timerLarge" class="timer">75</div>
+        <div id="wordBox" class="wordbox">Palavra</div>
+        <div id="actionButtons" class="action-row">
+          <button id="correctBtn" class="circle-btn green big">acertou</button>
+          <button id="skipBtn" class="circle-btn red big">pular</button>
+        </div>
+      </div>
+    </div>
+    <div class="screen" id="screen-5b">
+      <div class="center">
+        <div id="timerOnly" class="timer">75</div>
+      </div>
+    </div>
+    <div class="screen" id="screen-6">
+      <div class="center">
+        <div id="resultsList" class="results"></div>
+        <div class="center">
+          <button id="advanceBtn" class="btn green large">Avançar</button>
+        </div>
+      </div>
+    </div>
+    <div class="screen" id="screen-7">
+      <div class="center">
+        <div class="final-score">
+          <h3>Placar Final</h3>
+          <div id="finalScores"></div>
+        </div>
+      </div>
+    </div>
+    <div id="confirmModal" class="modal hidden">
+      <div class="modal-content">
+        <div>Deseja mesmo encerrar?</div>
+        <div class="modal-actions">
+          <button id="confirmYes" class="btn purple">Sim</button>
+          <button id="confirmNo" class="btn">Não</button>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
 </body>
 </html>
