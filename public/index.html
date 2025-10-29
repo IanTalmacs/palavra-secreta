@@ -1,129 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>multiplayer</title>
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/socket.io/socket.io.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jogo</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="app">
-    <!-- Tela 1 -->
-    <section id="screen-1" class="screen active">
-      <div class="card">
-        <input id="nameInput" placeholder="nome" maxlength="20" autocapitalize="words" />
-        <button id="confirmName" class="btn large">confirmar</button>
-      </div>
-    </section>
+  <div id="app"></div>
 
-    <!-- Tela 2: lobby / equipes -->
-    <section id="screen-2" class="screen">
-      <div class="card full">
-        <div class="columns">
-          <div class="col">
-            <h3>Lobby</h3>
-            <div id="lobbyList" class="player-list"></div>
-          </div>
-          <div class="col">
-            <h3>Equipe 1</h3>
-            <div id="team1List" class="player-list dropzone" data-team="team1"></div>
-            <div class="score">Placar: <span id="score1">0</span></div>
-          </div>
-          <div class="col">
-            <h3>Equipe 2</h3>
-            <div id="team2List" class="player-list dropzone" data-team="team2"></div>
-            <div class="score">Placar: <span id="score2">0</span></div>
-          </div>
-        </div>
-
-        <div class="actions">
-          <button id="categoriesBtn" class="btn large green">Categorias</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tela 3: escolher categoria -->
-    <section id="screen-3" class="screen">
-      <div class="card full">
-        <h3>Categorias</h3>
-        <div id="categoriesGrid" class="grid"></div>
-        <div class="actions">
-          <button id="finalizarBtn" class="btn large purple">finalizar</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tela 4: preparar e iniciar (mostra "preparar [nome]") -->
-    <section id="screen-4" class="screen">
-      <div class="card center">
-        <div id="prepareText" class="prepare"></div>
-        <button id="startBtn" class="btn large green" style="display:none;">iniciar</button>
-      </div>
-    </section>
-
-    <!-- Tela 5(a): jogador ativo -->
-    <section id="screen-5a" class="screen">
-      <div class="card center">
-        <div id="timerTop" class="timer">75</div>
-        <div id="wordBox" class="word">...</div>
-        <div id="controlButtons" class="controls">
-          <button id="btnAcertou" class="btn circle green big">acertou</button>
-          <button id="btnPular" class="btn circle red big">pular</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tela 5(b): espectadores -->
-    <section id="screen-5b" class="screen">
-      <div class="card center">
-        <div id="timerOnly" class="timer">75</div>
-      </div>
-    </section>
-
-    <!-- Tela 6: resumo turno -->
-    <section id="screen-6" class="screen">
-      <div class="card full">
-        <h3>Resultados</h3>
-        <div class="results">
-          <div>
-            <h4>Acertadas</h4>
-            <ul id="correctList"></ul>
-          </div>
-          <div>
-            <h4>Puladas</h4>
-            <ul id="skippedList"></ul>
-          </div>
-        </div>
-        <div class="actions">
-          <button id="advanceBtn" class="btn large">avançar</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tela de confirmação finalizar -->
-    <div id="confirmModal" class="modal">
-      <div class="modal-card">
-        <p>deseja mesmo encerrar?</p>
-        <div class="modal-actions">
-          <button id="confirmNo" class="btn">não</button>
-          <button id="confirmYes" class="btn green">sim</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tela final -->
-    <section id="screen-final" class="screen">
-      <div class="card full">
-        <h3>Placar Final</h3>
-        <div class="final-scores">
-          <div>Equipe 1: <strong id="final1">0</strong></div>
-          <div>Equipe 2: <strong id="final2">0</strong></div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <script src="/client.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
 </body>
 </html>

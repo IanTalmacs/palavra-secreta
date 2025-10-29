@@ -1,7 +1,8 @@
 {
   "name": "multiplayer-wordgame",
   "version": "1.0.0",
-  "private": true,
+  "description": "Multiplayer browser word game with Node + Socket.IO",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
