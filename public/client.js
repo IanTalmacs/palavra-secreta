@@ -1,213 +1,210 @@
 const socket = io();
-
-let currentState = {};
-let mySocketId = null;
+let myId = null;
 let isAdmin = false;
-let skipping = false;
+let currentScreen = 1;
+let selectedRadioPlayer = null;
+let currentWord = null;
+let countdownInterval = null;
+let remaining = 0;
+let activeRoundPlayerId = null;
 
-window.addEventListener('beforeunload', (e) => {
-    e.preventDefault();
-    e.returnValue = '';
-    return '';
-});
+const el = id => document.getElementById(id);
 
-socket.on('connect', () => {
-    mySocketId = socket.id;
-});
-
-socket.on('gameState', (state) => {
-    currentState = state;
-    updateUI();
-});
-
-socket.on('timeUpdate', (time) => {
-    const timerElement = document.getElementById('timer');
-    const timerLargeElement = document.getElementById('timerLarge');
-    if (timerElement) timerElement.textContent = time;
-    if (timerLargeElement) timerLargeElement.textContent = time;
-});
-
-socket.on('skipState', (data) => {
-    skipping = data.skipping;
-    const skipMessage = document.getElementById('skipMessage');
-    const wordDisplay = document.getElementById('wordDisplay');
-    const correctBtn = document.getElementById('correctBtn');
-    const skipBtn = document.getElementById('skipBtn');
-    
-    if (skipping) {
-        skipMessage.classList.add('active');
-        wordDisplay.style.opacity = '0.3';
-        correctBtn.disabled = true;
-        skipBtn.disabled = true;
-    } else {
-        skipMessage.classList.remove('active');
-        wordDisplay.style.opacity = '1';
-        correctBtn.disabled = false;
-        skipBtn.disabled = false;
-    }
-});
-
-function updateUI() {
-    const allPlayers = [...currentState.team1, ...currentState.team2];
-    const me = allPlayers.find(p => p.id === mySocketId);
-    isAdmin = me ? me.isAdmin : false;
-
-    hideAllScreens();
-
-    if (currentState.screen === 1) {
-        showScreen1();
-    } else if (currentState.screen === 2) {
-        showScreen2();
-    } else if (currentState.screen === 3) {
-        showScreen3();
-    } else if (currentState.screen === 4) {
-        if (mySocketId === currentState.selectedPlayer) {
-            showScreen4a();
-        } else {
-            showScreen4b();
-        }
-    } else if (currentState.screen === 5) {
-        showScreen5();
-    }
+function showScreen(n, extra){
+  currentScreen = n;
+  [1,2,3,4].forEach(i => {
+    const s = el('screen'+i);
+    if(s) s.classList.toggle('active', i===n);
+  });
+  if(n===1){
+    clearRoundUI();
+  }
+  if(n===2){
+    renderCategories(extra && extra.categories ? extra.categories : null);
+  }
+  if(n===3){
+    startLocalCountdown(extra && extra.duration ? extra.duration : 75000);
+  }
 }
 
-function hideAllScreens() {
-    document.getElementById('screen1').style.display = 'none';
-    document.getElementById('screen2').style.display = 'none';
-    document.getElementById('screen3').style.display = 'none';
-    document.getElementById('screen4a').style.display = 'none';
-    document.getElementById('screen4b').style.display = 'none';
-    document.getElementById('screen5').style.display = 'none';
+function clearRoundUI(){
+  el('wordLarge').textContent = '...';
+  el('resultsWrap').innerHTML = '';
+  stopCountdown();
 }
 
-function showScreen1() {
-    document.getElementById('screen1').style.display = 'block';
-    
-    const team1Players = document.getElementById('team1Players');
-    const team2Players = document.getElementById('team2Players');
-    
-    team1Players.innerHTML = currentState.team1.map(p => 
-        `<span class="player-tag">${p.name}</span>`
-    ).join('');
-    
-    team2Players.innerHTML = currentState.team2.map(p => 
-        `<span class="player-tag">${p.name}</span>`
-    ).join('');
-
-    const categoriesBtn = document.getElementById('categoriesBtn');
-    categoriesBtn.disabled = !isAdmin;
+function stopCountdown(){
+  if(countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = null;
 }
 
-function showScreen2() {
-    document.getElementById('screen2').style.display = 'block';
-    
-    document.getElementById('score1').textContent = currentState.score.team1;
-    document.getElementById('score2').textContent = currentState.score.team2;
-
-    const categoryBtns = document.querySelectorAll('.category-btn');
-    categoryBtns.forEach(btn => {
-        btn.disabled = !isAdmin;
-    });
+function startLocalCountdown(ms){
+  remaining = Math.ceil(ms/1000);
+  el('timer').textContent = remaining;
+  if(countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(()=>{
+    remaining--;
+    if(remaining<0){ clearInterval(countdownInterval); countdownInterval=null; return;}
+    el('timer').textContent = remaining;
+  },1000);
+  requestWord();
 }
 
-function showScreen3() {
-    document.getElementById('screen3').style.display = 'block';
-    
-    const playersButtons = document.getElementById('playersButtons');
-    const allPlayers = [...currentState.team1, ...currentState.team2];
-    
-    playersButtons.innerHTML = allPlayers.map(p => {
-        const selected = p.id === currentState.selectedPlayer ? 'selected' : '';
-        return `<button class="player-btn ${selected}" data-player-id="${p.id}" ${!isAdmin ? 'disabled' : ''}>${p.name}</button>`;
-    }).join('');
-
-    const startBtn = document.getElementById('startBtn');
-    if (mySocketId === currentState.selectedPlayer) {
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
-    } else {
-        startBtn.style.display = 'none';
-    }
+function requestWord(){
+  socket.emit('requestWord');
 }
 
-function showScreen4a() {
-    document.getElementById('screen4a').style.display = 'block';
-    
-    document.getElementById('timer').textContent = currentState.timeLeft;
-    document.getElementById('wordDisplay').textContent = currentState.currentWord || '';
+function renderPlayers(players){
+  const ul = el('playersUl');
+  ul.innerHTML = '';
+  players.forEach(p => {
+    const li = document.createElement('li');
+    li.textContent = p.name + (p.isAdmin ? ' (admin)' : '') + (p.team ? ' • ' + (p.team==='team1'?'Equipe 1':'Equipe 2') : '');
+    ul.appendChild(li);
+  });
+  const radiosWrap = el('playersRadiosWrap');
+  radiosWrap.innerHTML = '';
+  players.forEach(p => {
+    const div = document.createElement('label');
+    div.className = 'playerRadio';
+    const r = document.createElement('input');
+    r.type = 'radio';
+    r.name = 'playerRadio';
+    r.value = p.id;
+    r.onclick = ()=> selectedRadioPlayer = p.id;
+    div.appendChild(r);
+    const span = document.createElement('span');
+    span.textContent = p.name + (p.isAdmin ? ' (admin)' : '');
+    div.appendChild(span);
+    radiosWrap.appendChild(div);
+  });
 }
 
-function showScreen4b() {
-    document.getElementById('screen4b').style.display = 'block';
-    document.getElementById('timerLarge').textContent = currentState.timeLeft;
+function renderCategories(list){
+  const wrap = el('categoriesWrap');
+  wrap.innerHTML = '';
+  const cats = list || [
+    {key:"animais",label:"animais"},
+    {key:"tv_cinema",label:"tv e cinema"},
+    {key:"objetos",label:"objetos"},
+    {key:"lugares",label:"lugares"},
+    {key:"pessoas",label:"pessoas"},
+    {key:"esportes_jogos",label:"esportes e jogos"},
+    {key:"profissoes",label:"profissões"},
+    {key:"alimentos",label:"alimentos"},
+    {key:"personagens",label:"personagens"},
+    {key:"biblico",label:"bíblico"}
+  ];
+  cats.forEach(c=>{
+    const b = document.createElement('button');
+    b.className = 'catBtn';
+    b.textContent = c.label;
+    b.onclick = ()=> socket.emit('selectCategory', c.key);
+    wrap.appendChild(b);
+  });
 }
 
-function showScreen5() {
-    document.getElementById('screen5').style.display = 'block';
-    
-    const correctWords = document.getElementById('correctWords');
-    const skippedWords = document.getElementById('skippedWords');
-    
-    correctWords.innerHTML = currentState.roundResults.correct.map(w => 
-        `<span class="word-tag">${w}</span>`
-    ).join('');
-    
-    skippedWords.innerHTML = currentState.roundResults.skipped.map(w => 
-        `<span class="word-tag">${w}</span>`
-    ).join('');
+el('team1').onclick = ()=> {
+  socket.emit('joinTeam','team1');
+};
+el('team2').onclick = ()=> {
+  socket.emit('joinTeam','team2');
+};
+el('btnCategorias').onclick = ()=> {
+  socket.emit('showCategories');
+};
+el('btnCategoriasAfter').onclick = ()=> {
+  socket.emit('showCategories');
+};
+el('btnBackFrom2').onclick = ()=> {
+  showScreen(1);
+};
+el('btnStartRound').onclick = ()=> {
+  if(!selectedRadioPlayer) return;
+  socket.emit('startRound', selectedRadioPlayer);
+};
+el('btnAcertou').onclick = ()=> {
+  socket.emit('acertou');
+};
+el('btnPular').onclick = ()=> {
+  el('wordLarge').textContent = 'pulando...';
+  socket.emit('pular');
+};
 
-    const backBtn = document.getElementById('backToCategoriesBtn');
-    backBtn.disabled = !isAdmin;
-}
-
-document.getElementById('team1Section').addEventListener('click', () => {
-    const name = document.getElementById('nameInput').value.trim();
-    if (name) {
-        socket.emit('joinTeam', { name, team: 1 });
-    }
+el('nameInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const name = el('nameInput').value || '';
+    socket.emit('join',{name});
+    el('nameInput').blur();
+  }
 });
 
-document.getElementById('team2Section').addEventListener('click', () => {
-    const name = document.getElementById('nameInput').value.trim();
-    if (name) {
-        socket.emit('joinTeam', { name, team: 2 });
-    }
+socket.on('connect', ()=>{
+  myId = socket.id;
 });
 
-document.getElementById('categoriesBtn').addEventListener('click', () => {
-    socket.emit('goToCategories');
+socket.on('state', data=>{
+  renderPlayers(data.players);
+  el('score1').textContent = data.scores.team1 || 0;
+  el('score2').textContent = data.scores.team2 || 0;
 });
 
-document.querySelectorAll('.category-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const category = btn.dataset.category;
-        socket.emit('selectCategory', category);
-    });
+socket.on('showScreen', (n, extra)=>{
+  if(n===2){
+    showScreen(2, extra || {});
+  } else if(n===3){
+    showScreen(3, extra || {});
+  } else if(n===1){
+    showScreen(1);
+  }
 });
 
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('player-btn')) {
-        const playerId = e.target.dataset.playerId;
-        socket.emit('selectPlayer', playerId);
-    }
+socket.on('selectedRoundPlayer', id=>{
+  activeRoundPlayerId = id;
 });
 
-document.getElementById('startBtn').addEventListener('click', () => {
-    socket.emit('startRound');
+socket.on('word', w=>{
+  currentWord = w;
+  el('wordLarge').textContent = w;
 });
 
-document.getElementById('correctBtn').addEventListener('click', () => {
-    if (!skipping) {
-        socket.emit('correctWord');
-    }
+socket.on('noWord', ()=>{
+  el('wordLarge').textContent = 'sem palavras restantes';
 });
 
-document.getElementById('skipBtn').addEventListener('click', () => {
-    if (!skipping) {
-        socket.emit('skipWord');
-    }
+socket.on('scores', s=>{
+  el('score1').textContent = s.team1 || 0;
+  el('score2').textContent = s.team2 || 0;
 });
 
-document.getElementById('backToCategoriesBtn').addEventListener('click', () => {
-    socket.emit('backToCategories');
+socket.on('roundEnded', summary=>{
+  stopCountdown();
+  showScreen(4);
+  const wrap = el('resultsWrap');
+  wrap.innerHTML = '';
+  const used = summary.usedWords || [];
+  used.forEach(u=>{
+    const parts = u.split('||');
+    const cat = parts[0];
+    const word = parts[1];
+    const div = document.createElement('div');
+    div.className = 'resultWord ok';
+    div.textContent = word + ' • ' + cat;
+    wrap.appendChild(div);
+  });
+  el('score1').textContent = summary.scores.team1 || 0;
+  el('score2').textContent = summary.scores.team2 || 0;
+});
+
+socket.on('resetToScreen1', ()=>{
+  showScreen(1);
+  el('nameInput').value = '';
+  renderPlayers([]);
+  el('score1').textContent = '0';
+  el('score2').textContent = '0';
+});
+
+window.addEventListener('beforeunload', function (e) {
+  e.preventDefault();
+  e.returnValue = '';
 });

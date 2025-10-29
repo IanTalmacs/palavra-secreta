@@ -1,13 +1,12 @@
 {
-  "name": "jogo-palavras",
+  "name": "palavras-tempo-realtime",
   "version": "1.0.0",
-  "description": "Jogo de adivinhação de palavras em tempo real",
-  "main": "server.js",
+  "private": true,
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.6.1"
+    "socket.io": "^4.7.2"
   }
 }
