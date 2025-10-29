@@ -2,133 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Jogo Realtime</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Game</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app" class="app">
-    <!-- Single-screen container. We'll render only one screen at a time -->
-
-    <!-- SCREEN 1: nome e confirmar -->
-    <section id="screen-1" class="screen">
-      <div class="center-card">
-        <input id="name-input" placeholder="Seu nome" maxlength="30" />
-        <button id="confirm-name" class="btn large">Confirmar</button>
-        <div class="hint">(adicione 999 ao seu nome para ser Admin — 999 fica invisível)</div>
-      </div>
-    </section>
-
-    <!-- SCREEN 2: Lobby e botao Categorias -->
-    <section id="screen-2" class="screen hidden">
-      <header class="topbar">
-        <div class="score">Placar — <span id="score-team1">0</span> : <span id="score-team2">0</span></div>
-        <button id="btn-categories" class="btn small">Categorias</button>
-      </header>
-
-      <main class="teams-area">
-        <div class="column">
-          <h3>Lobby</h3>
-          <div id="lobby" class="droplist"></div>
-        </div>
-        <div class="column">
-          <h3>Equipe 1</h3>
-          <div id="team1" class="droplist"></div>
-        </div>
-        <div class="column">
-          <h3>Equipe 2</h3>
-          <div id="team2" class="droplist"></div>
-        </div>
-      </main>
-
-      <footer class="bottombar">
-        <button id="admin-next" class="btn large">Próxima</button>
-      </footer>
-    </section>
-
-    <!-- SCREEN 3: placar no topo + 10 categorias no meio -->
-    <section id="screen-3" class="screen hidden">
-      <header class="topbar">
-        <div class="score">Placar — <span id="s3-score-team1">0</span> : <span id="s3-score-team2">0</span></div>
-      </header>
-      <main class="categories-grid">
-        <!-- categories injected here -->
-      </main>
-      <footer class="bottombar">
-        <button id="admin-next-3" class="btn large">Próxima</button>
-      </footer>
-    </section>
-
-    <!-- SCREEN 4: lista com players divididos em equipes, admin escolhe jogador -->
-    <section id="screen-4" class="screen hidden">
-      <header class="topbar">
-        <div class="score">Placar — <span id="s4-score-team1">0</span> : <span id="s4-score-team2">0</span></div>
-      </header>
-      <main class="players-list">
-        <div>
-          <h4>Equipe 1</h4>
-          <div id="list-team1"></div>
-        </div>
-        <div>
-          <h4>Equipe 2</h4>
-          <div id="list-team2"></div>
-        </div>
-      </main>
-      <footer class="bottombar">
-        <button id="admin-next-4" class="btn large">Próxima</button>
-      </footer>
-    </section>
-
-    <!-- SCREEN 5(a): jogador ativo view -->
-    <section id="screen-5a" class="screen hidden">
-      <div class="round-top">
-        <div id="round-time" class="big-time">75</div>
-      </div>
-      <div class="round-center">
-        <div id="word-display" class="big-word">—</div>
-        <div id="puling" class="hidden">Pulando...</div>
-      </div>
-      <div class="round-actions">
-        <button id="btn-acertou" class="round-btn green circle">acertou</button>
-        <button id="btn-pular" class="round-btn red circle">pular</button>
-      </div>
-    </section>
-
-    <!-- SCREEN 5(b): espectadores -->
-    <section id="screen-5b" class="screen hidden">
-      <div class="round-top">
-        <div id="round-time-b" class="big-time">75</div>
-      </div>
-    </section>
-
-    <!-- SCREEN 6: results -->
-    <section id="screen-6" class="screen hidden">
-      <header class="topbar">
-        <div class="score">Placar — <span id="s6-score-team1">0</span> : <span id="s6-score-team2">0</span></div>
-        <button id="btn-categories-6" class="btn small">Categorias</button>
-      </header>
-      <main class="results-area">
-        <h3>Acertadas</h3>
-        <div id="correct-list"></div>
-        <h3>Puladas</h3>
-        <div id="skipped-list"></div>
-      </main>
-      <footer class="bottombar">
-        <button id="admin-next-6" class="btn large">Próxima</button>
-      </footer>
-    </section>
-
-    <!-- Modal: categories -->
-    <div id="categories-modal" class="modal hidden">
-      <div class="modal-card">
-        <h4>Escolha categorias</h4>
-        <div id="categories-checkboxes"></div>
-        <div class="modal-actions">
-          <button id="save-categories" class="btn large">Salvar</button>
-        </div>
-      </div>
-    </div>
-
+  <div id="app" class="container">
+    <!-- All screens rendered by client.js according to server state -->
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

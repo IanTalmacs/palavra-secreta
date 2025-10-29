@@ -1,13 +1,13 @@
 {
-  "name": "realtime-quiz-app",
+  "name": "realtime-wordgame",
   "version": "1.0.0",
-  "description": "App de jogo em tempo real com Node e Socket.IO (design mobile, inspirado em Spotify)",
+  "description": "Jogo browser realtime com Node + Socket.IO (estrutura para Railway)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.7.2"
   }
 }
