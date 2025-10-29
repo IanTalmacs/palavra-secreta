@@ -2,81 +2,14 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Wits — Jogo de Palavras</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>Party Word Game</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div id="app" class="centered">
-    <!-- Screen 1: Name entry -->
-    <div id="screen-1" class="screen">
-      <h1>Wits</h1>
-      <div class="input-row">
-        <input id="nameInput" placeholder="Digite seu nome (adicione 9999 para ser Admin)" />
-        <button id="confirmName">Confirmar</button>
-      </div>
-      <small class="muted">Coloque 9999 no nome para ser Admin (não ficará visível).</small>
-    </div>
-
-    <!-- Screen 2: Lobby -->
-    <div id="screen-2" class="screen hidden">
-      <h2>Lobby</h2>
-      <div id="areas" class="areas">
-        <div class="area">
-          <h3>Lobby</h3>
-          <ul id="lobbyList" class="list" ondragover="event.preventDefault()"></ul>
-        </div>
-        <div class="area">
-          <h3>Equipe 1</h3>
-          <ul id="team1List" class="list" ondragover="event.preventDefault()"></ul>
-        </div>
-        <div class="area">
-          <h3>Equipe 2</h3>
-          <ul id="team2List" class="list" ondragover="event.preventDefault()"></ul>
-        </div>
-      </div>
-      <div class="controls">
-        <button id="categoriesBtn" class="primary">Categorias</button>
-      </div>
-      <div class="scores" id="scoresRow"></div>
-    </div>
-
-    <!-- Screen 3: Categories -->
-    <div id="screen-3" class="screen hidden">
-      <h2>Categorias</h2>
-      <div id="categoriesGrid" class="grid"></div>
-    </div>
-
-    <!-- Screen 4: Prepare (shows prepare message and 'iniciar' to chosen player) -->
-    <div id="screen-4" class="screen hidden">
-      <h2 id="prepareText">Preparar ...</h2>
-      <div id="startBtnWrap"></div>
-    </div>
-
-    <!-- Screen 5a/b: Turn -->
-    <div id="screen-5" class="screen hidden">
-      <div id="timer" class="timer">75</div>
-      <div id="wordArea" class="wordArea">
-        <div id="wordText" class="wordText">Palavra</div>
-        <div id="actionBtns" class="actionBtns">
-          <button id="correctBtn" class="bigBtn correct">Acertou</button>
-          <button id="skipBtn" class="bigBtn skip">Pular</button>
-        </div>
-        <div id="skipOverlay" class="skipOverlay hidden">Pulando...</div>
-      </div>
-    </div>
-
-    <!-- Screen 6: Round result -->
-    <div id="screen-6" class="screen hidden">
-      <h2>Resultados</h2>
-      <div id="resultsList" class="resultsList"></div>
-      <div class="controls">
-        <button id="advanceBtn" class="primary">Avançar</button>
-      </div>
-    </div>
-  </div>
+  <div id="app" class="container"></div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
+  <script src="/client.js"></script>
 </body>
 </html>
