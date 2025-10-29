@@ -1,475 +1,552 @@
-// client.js
 const socket = io();
-let myId = null;
-let myName = null;
-let isAdmin = false;
-let localState = null;
-let skipHidden = false;
-let skipAnimating = false;
 
-// helper to get element
-function el(id){ return document.getElementById(id); }
-const app = document.getElementById('app');
+// UI elements
+const screen1 = document.getElementById('screen-1');
+const screen2 = document.getElementById('screen-2');
+const screen4 = document.getElementById('screen-4');
+const screen5a = document.getElementById('screen-5a');
+const screen5b = document.getElementById('screen-5b');
+const screen6 = document.getElementById('screen-6');
 
-// beforeunload warning
-window.addEventListener('beforeunload', (e) => {
-  e.preventDefault();
-  e.returnValue = '';
-});
+const nameInput = document.getElementById('name-input');
+const confirmNameBtn = document.getElementById('confirm-name');
 
-// receive full state
-socket.on('state', (s) => {
-  // store snapshot
-  localState = s;
-  renderApp();
-  // request chosen word if I'm chosen
-  if (s.currentRound && s.currentRound.selectedPlayerId === myId) {
-    // server sends chosenWord via 'chosenWord' targeted emit, but force request by doing nothing
-  }
-});
+const lobbyEl = document.getElementById('lobby');
+const team1El = document.getElementById('team1');
+const team2El = document.getElementById('team2');
 
-socket.on('tick', ({ remaining }) => {
-  if (localState) {
-    localState.currentRound.remaining = remaining;
-    // update timer UI
-    updateTimer(remaining);
-  }
-});
+const playersList = document.getElementById('players-list');
 
-socket.on('chosenWord', ({ currentWord, remaining }) => {
-  if (!localState) return;
-  localState.currentRound.currentWord = currentWord;
-  localState.currentRound.remaining = remaining;
-  renderApp();
-});
+const btnCategorias = document.getElementById('btn-categorias');
+const modalCategories = document.getElementById('modal-categories');
+const categoriesList = document.getElementById('categories-list');
+const closeCategories = document.getElementById('close-categories');
+const saveCategories = document.getElementById('save-categories');
 
-socket.on('skip-start', () => {
-  skipAnimating = true;
-  renderApp();
-});
-socket.on('skip-end', () => {
-  skipAnimating = false;
-  renderApp();
-});
+const scoreTeam1 = document.getElementById('score-team1');
+const scoreTeam2 = document.getElementById('score-team2');
 
-socket.on('roundEnded', ({ wordStatuses, scores }) => {
-  if (!localState) return;
-  localState.screen = 6;
-  localState.currentRound.wordStatuses = wordStatuses;
-  localState.scores = scores;
-  renderApp();
-});
+const btnCategorias2 = document.getElementById('btn-categorias-2');
+const btnAdminNext = document.getElementById('btn-admin-next');
 
-// On connect, receive own id from socket
-socket.on('connect', () => {
-  myId = socket.id;
-});
+const playersContainer = document.getElementById('players-list');
 
-// UI rendering
-function renderApp() {
-  const s = localState || { screen:1, players:[], lobbyOrder:[], team1:[], team2:[], adminId:null, categoriesSelected:[], currentRound:{}, scores:{team1:0,team2:0} };
-  isAdmin = s.adminId === myId;
-  // top-level container
-  app.innerHTML = '';
+const roundTime = document.getElementById('round-time');
+const roundTime2 = document.getElementById('round-time-2');
+const wordArea = document.getElementById('word-area');
+const skipText = document.getElementById('skip-text');
+const btnCorrect = document.getElementById('btn-correct');
+const btnSkip = document.getElementById('btn-skip');
 
-  // Header
-  const header = document.createElement('div');
-  header.className = 'card';
-  header.innerHTML = `<div class="h1">Party Words</div><div class="h2">Tela ${s.screen}</div>`;
-  app.appendChild(header);
+const resultsList = document.getElementById('results-list');
 
-  // Render screens
-  if (s.screen === 1) renderScreen1(s);
-  else if (s.screen === 2) renderScreen2(s);
-  else if (s.screen === 3) renderScreen3(s);
-  else if (s.screen === 4) renderScreen4(s);
-  else if (s.screen === 5) renderScreen5(s);
-  else if (s.screen === 6) renderScreen6(s);
+let me = { id: null, isAdmin: false, displayName: null };
+let state = null;
+let endTime = null;
+let rafTimer = null;
+let localSelectedCategories = [];
 
-  // footer controls (admin only navigation)
-  const footer = document.createElement('div');
-  footer.className = 'footer card';
-  const txt = document.createElement('div');
-  txt.className = 'small-muted';
-  txt.innerText = isAdmin ? 'Você é ADMIN — controles visíveis' : 'Participante';
-  footer.appendChild(txt);
-
-  if (isAdmin) {
-    const btnRow = document.createElement('div');
-    btnRow.style.flex = '1';
-    btnRow.style.display = 'flex';
-    btnRow.style.gap = '8px';
-    btnRow.style.justifyContent = 'flex-end';
-
-    const prevBtn = document.createElement('button');
-    prevBtn.className = 'btn ghost';
-    prevBtn.style.minWidth = '120px';
-    prevBtn.innerText = 'Voltar';
-    prevBtn.onclick = () => {
-      const target = Math.max(1, (localState?.screen || 1) - 1);
-      socket.emit('gotoScreen', target);
-    };
-
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'btn';
-    nextBtn.style.minWidth = '120px';
-    nextBtn.innerText = 'Avançar';
-    nextBtn.onclick = () => {
-      socket.emit('gotoScreen', Math.min(6, (localState?.screen || 1) + 1));
-    };
-
-    btnRow.appendChild(prevBtn);
-    btnRow.appendChild(nextBtn);
-    footer.appendChild(btnRow);
-  }
-
-  app.appendChild(footer);
+function showScreen(n) {
+  // hide all screens
+  [screen1, screen2, screen4, screen5a, screen5b, screen6].forEach(s => s.classList.add('hidden'));
+  if (n === 1) screen1.classList.remove('hidden');
+  if (n === 2) screen2.classList.remove('hidden');
+  if (n === 4) screen4.classList.remove('hidden');
+  if (n === '5a') screen5a.classList.remove('hidden');
+  if (n === '5b') screen5b.classList.remove('hidden');
+  if (n === 6) screen6.classList.remove('hidden');
 }
 
-/* Screen 1 - name input */
-function renderScreen1(s) {
-  const card = document.createElement('div');
-  card.className = 'card';
-  const input = document.createElement('input');
-  input.className = 'input';
-  input.placeholder = 'Digite seu nome (adicione 9999 no nome para ser Admin)';
-  input.value = myName || '';
-  input.oninput = (e) => { myName = e.target.value; };
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') confirmName();
+function enableBeforeUnloadPrompt() {
+  window.addEventListener('beforeunload', (e) => {
+    e.preventDefault();
+    e.returnValue = '';
   });
-
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.innerText = 'Confirmar';
-  btn.onclick = confirmName;
-
-  card.appendChild(input);
-  card.appendChild(document.createElement('div'));
-  card.appendChild(btn);
-  app.appendChild(card);
-
-  // show current players (if any)
-  const playersCard = document.createElement('div');
-  playersCard.className = 'card';
-  playersCard.innerHTML = `<div class="h2">Jogadores conectados</div>`;
-  const list = document.createElement('div'); list.className = 'list';
-  (s.players || []).forEach(p => {
-    const it = document.createElement('div');
-    it.className = 'player' + (p.isAdmin ? ' admin' : '');
-    it.innerHTML = `<div class="pin">${p.name[0] || '?'}</div><div><div style="font-weight:700">${p.name}</div><div class="small">${p.team}</div></div>`;
-    list.appendChild(it);
-  });
-  playersCard.appendChild(list);
-  app.appendChild(playersCard);
 }
 
-function confirmName() {
-  if (!myName || !myName.trim()) {
-    alert('Digite um nome');
+// initial
+showScreen(1);
+enableBeforeUnloadPrompt();
+
+// confirm name
+confirmNameBtn.addEventListener('click', () => {
+  const name = nameInput.value.trim();
+  if (!name) return alert('Digite seu nome');
+  socket.emit('join', name, (res) => {
+    if (!res || !res.ok) return alert('Erro ao entrar');
+    me.id = res.playerId;
+    me.isAdmin = !!res.isAdmin;
+    // After join, advance to screen 2 if admin exists on server.
+    // Server will send state which will set UI accordingly.
+  });
+});
+
+btnCategorias.addEventListener('click', () => {
+  openCategoriesModal();
+});
+btnCategorias2.addEventListener('click', () => {
+  openCategoriesModal();
+});
+closeCategories.addEventListener('click', () => {
+  modalCategories.classList.add('hidden');
+});
+saveCategories.addEventListener('click', () => {
+  // only admin can save
+  if (!me.isAdmin) {
+    modalCategories.classList.add('hidden');
     return;
   }
-  socket.emit('setName', { name: myName });
+  const checks = Array.from(categoriesList.querySelectorAll('input[type=checkbox]'));
+  const chosen = checks.filter(c => c.checked).map(c => c.value);
+  socket.emit('setCategories', chosen);
+  modalCategories.classList.add('hidden');
+});
+
+btnAdminNext.addEventListener('click', () => {
+  if (!me.isAdmin) return;
+  socket.emit('endResultsNext');
+});
+
+// player actions
+btnCorrect.addEventListener('click', () => {
+  socket.emit('correct');
+});
+btnSkip.addEventListener('click', () => {
+  socket.emit('skip');
+});
+
+// drag & drop helpers
+function makeDraggable(el, playerId) {
+  el.setAttribute('draggable', 'true');
+  el.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', playerId);
+  });
 }
 
-/* Screen 2 - Lobby and Teams, button categorias below */
-function renderScreen2(s) {
-  const card = document.createElement('div'); card.className = 'card';
-  card.innerHTML = `<div class="h1">Lobby</div><div class="h2">Arraste jogadores (apenas admin)</div>`;
-  // columns
-  const columns = document.createElement('div'); columns.className = 'columns';
-  const lobbyCol = document.createElement('div'); lobbyCol.className = 'col card';
-  lobbyCol.innerHTML = `<h3>Lobby</h3>`;
-  const team1Col = document.createElement('div'); team1Col.className = 'col card';
-  team1Col.innerHTML = `<h3>Equipe 1 (pontuação: ${s.scores?.team1||0})</h3>`;
-  const team2Col = document.createElement('div'); team2Col.className = 'col card';
-  team2Col.innerHTML = `<h3>Equipe 2 (pontuação: ${s.scores?.team2||0})</h3>`;
-
-  // helper to create player element
-  const makePlayerEl = (pid) => {
-    const p = s.players.find(x => x.id === pid);
-    if (!p) return null;
-    const div = document.createElement('div');
-    div.className = 'player';
-    if (p.isAdmin) div.classList.add('admin');
-    div.draggable = isAdmin;
-    div.dataset.playerId = p.id;
-    div.innerHTML = `<div class="pin">${p.name[0] || '?'}</div><div style="flex:1"><div style="font-weight:700">${p.name}</div><div class="small">${p.isAdmin ? 'Admin' : ''}</div></div>`;
-    if (isAdmin) {
-      div.addEventListener('dragstart', (ev) => {
-        ev.dataTransfer.setData('text/plain', p.id);
-      });
-    }
-    return div;
-  };
-
-  // populate lobby in order
-  const lobbyList = document.createElement('div'); lobbyList.className = 'list';
-  (s.lobbyOrder || []).forEach(pid => {
-    const elp = makePlayerEl(pid);
-    if (elp) lobbyList.appendChild(elp);
+[lobbyEl, team1El, team2El].forEach(container => {
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
   });
-  lobbyCol.appendChild(lobbyList);
-
-  // populate teams
-  const team1List = document.createElement('div'); team1List.className = 'list';
-  (s.team1 || []).forEach(pid => {
-    const elp = makePlayerEl(pid);
-    if (elp) team1List.appendChild(elp);
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const playerId = e.dataTransfer.getData('text/plain');
+    let team = 'lobby';
+    if (container.id === 'team1') team = 'team1';
+    if (container.id === 'team2') team = 'team2';
+    socket.emit('movePlayer', { playerId, team });
   });
-  team1Col.appendChild(team1List);
+});
 
-  const team2List = document.createElement('div'); team2List.className = 'list';
-  (s.team2 || []).forEach(pid => {
-    const elp = makePlayerEl(pid);
-    if (elp) team2List.appendChild(elp);
-  });
-  team2Col.appendChild(team2List);
+// render functions
+function renderPlayersLists(players) {
+  lobbyEl.innerHTML = '';
+  team1El.innerHTML = '';
+  team2El.innerHTML = '';
 
-  columns.appendChild(lobbyCol);
-  columns.appendChild(team1Col);
-  columns.appendChild(team2Col);
-  card.appendChild(columns);
-
-  // drag/drop handlers for admin
-  [lobbyCol, team1Col, team2Col].forEach(col => {
-    col.addEventListener('dragover', (e) => {
-      if (!isAdmin) return;
-      e.preventDefault();
-      col.style.outline = '2px dashed rgba(255,255,255,0.04)';
-    });
-    col.addEventListener('dragleave', () => {
-      col.style.outline = '';
-    });
-    col.addEventListener('drop', (e) => {
-      e.preventDefault();
-      col.style.outline = '';
-      if (!isAdmin) return;
-      const pid = e.dataTransfer.getData('text/plain');
-      if (!pid) return;
-      let to = 'lobby';
-      if (col === team1Col) to = 'team1';
-      if (col === team2Col) to = 'team2';
-      socket.emit('movePlayer', { playerId: pid, to });
-    });
-  });
-
-  app.appendChild(card);
-
-  // Categories button below
-  const catCard = document.createElement('div'); catCard.className = 'card';
-  const btnCat = document.createElement('button');
-  btnCat.className = 'btn';
-  btnCat.innerText = 'Categorias';
-  btnCat.onclick = () => {
-    // only admin can navigate to categories
-    if (!isAdmin) {
-      alert('Apenas o admin pode abrir Categorias.');
-      return;
-    }
-    socket.emit('gotoScreen', 3);
-  };
-  catCard.appendChild(btnCat);
-  app.appendChild(catCard);
-}
-
-/* Screen 3 - Categories selection */
-function renderScreen3(s) {
-  const card = document.createElement('div'); card.className = 'card';
-  card.innerHTML = `<div class="h1">Categorias</div><div class="h2">Selecione as categorias (apenas admin)</div>`;
-  const grid = document.createElement('div'); grid.className = 'cat-grid';
-  // categories list (must match server words.json keys)
-  const keys = Object.keys(window.initialWords || {});
-  // but client may not have initialWords; we'll use built-in fallback (categories common in words.json)
-  const fallback = ['animais','tv_e_cinema','objetos','lugares','pessoas','esportes_e_jogos','profissões','alimentos','personagens','biblico'];
-  const cats = keys.length ? keys : fallback;
-
-  cats.forEach(cat => {
-    const box = document.createElement('div');
-    box.className = 'cat';
-    box.style.background = s.categoriesSelected && s.categoriesSelected.includes(cat) ? 'linear-gradient(180deg, rgba(29,185,84,0.12), transparent)' : 'transparent';
-    box.style.border = '1px solid rgba(255,255,255,0.03)';
-    box.innerText = cat.replace(/_/g,' ').toUpperCase();
-    box.onclick = () => {
-      if (!isAdmin) { alert('Apenas admin pode selecionar categorias'); return; }
-      socket.emit('toggleCategory', cat);
-    };
-    grid.appendChild(box);
-  });
-
-  card.appendChild(grid);
-
-  // finalize button => build pool and goto screen 4
-  const finalize = document.createElement('button');
-  finalize.className = 'btn';
-  finalize.style.marginTop = '12px';
-  finalize.innerText = 'Confirmar categorias';
-  finalize.onclick = () => {
-    if (!isAdmin) return;
-    socket.emit('finalizeCategories');
-  };
-
-  card.appendChild(finalize);
-  app.appendChild(card);
-}
-
-/* Screen 4 - Choose player from list. Admin selects; chosen player sees "Iniciar" button. */
-function renderScreen4(s) {
-  const card = document.createElement('div'); card.className = 'card';
-  card.innerHTML = `<div class="h1">Escolha um jogador</div><div class="h2">Admin seleciona; o jogador escolhido verá botão Iniciar</div>`;
-
-  // list all players
-  const list = document.createElement('div'); list.className = 'list';
-  (s.players || []).forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'player';
-    if (s.currentRound && s.currentRound.selectedPlayerId === p.id) item.style.outline = '2px solid rgba(29,185,84,0.12)';
-    item.innerHTML = `<div class="pin">${p.name[0]||'?'}</div><div style="flex:1"><div style="font-weight:700">${p.name}</div><div class="small">${p.team}</div></div>`;
-    // admin clicking selects
-    item.onclick = () => {
-      if (!isAdmin) return; // only admin selects
-      socket.emit('selectPlayerForTurn', p.id);
-    };
-    list.appendChild(item);
-  });
-  card.appendChild(list);
-
-  // below, if current client is the chosen player, show 'Iniciar' button
-  const chosen = s.currentRound && s.currentRound.selectedPlayerId;
-  if (chosen && chosen === myId) {
-    const startBtn = document.createElement('button');
-    startBtn.className = 'btn';
-    startBtn.style.marginTop = '12px';
-    startBtn.innerText = 'Iniciar';
-    startBtn.onclick = () => {
-      socket.emit('startRound');
-    };
-    card.appendChild(startBtn);
-  } else {
-    const info = document.createElement('div');
-    info.className = 'small-muted';
-    if (!chosen) info.innerText = isAdmin ? 'Selecione um jogador' : 'Aguardando admin escolher um jogador';
-    else info.innerText = 'Aguardando jogador escolhido iniciar';
-    card.appendChild(info);
-  }
-
-  app.appendChild(card);
-}
-
-/* Screen 5 - gameplay
-   5(a): the chosen player sees word + buttons "acertou"/"pular" (green/red)
-   5(b): other players just see timer
-*/
-function renderScreen5(s) {
-  const card = document.createElement('div'); card.className = 'card';
-  card.innerHTML = `<div class="h1">Rodada</div><div class="h2">Tempo restante</div>`;
-
-  const center = document.createElement('div'); center.className = 'center-screen';
-
-  // timer
-  const timer = document.createElement('div'); timer.className = 'timer-big';
-  const remaining = (s.currentRound && s.currentRound.remaining) || 0;
-  timer.innerText = formatTime(remaining);
-  center.appendChild(timer);
-
-  const chosenId = s.currentRound && s.currentRound.selectedPlayerId;
-  const iAmChosen = chosenId === myId;
-  // if chosen show word and buttons (unless skip animating)
-  if (iAmChosen) {
-    if (skipAnimating) {
-      const p = document.createElement('div'); p.className = 'word-big';
-      p.innerText = 'Pulando...';
-      center.appendChild(p);
+  players.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'player' + (p.isAdmin ? ' admin' : '');
+    el.innerHTML = `<div class="name">${escapeHtml(p.displayName)}</div>`;
+    // admin can drag
+    if (me.isAdmin) {
+      makeDraggable(el, p.id);
     } else {
-      // show current word (note: server sends chosenWord event to chosen player with currentWord)
-      const word = s.currentRound && s.currentRound.currentWord;
-      const showWord = document.createElement('div'); showWord.className = 'word-big';
-      showWord.innerText = (word && word.text) ? word.text.toUpperCase() : '...';
-      center.appendChild(showWord);
-
-      // buttons
-      const row = document.createElement('div'); row.className = 'circle-btns';
-      // acertou
-      const ok = document.createElement('div'); ok.className = 'circle green'; ok.innerText = 'ACERTOU';
-      ok.onclick = () => {
-        socket.emit('correct');
-      };
-      // pular: hide it when <=5 seconds
-      const skipBtn = document.createElement('div'); skipBtn.className = 'circle red'; skipBtn.innerText = 'PULAR';
-      if (remaining <= 5) {
-        skipBtn.style.display = 'none';
-      } else {
-        skipBtn.onclick = () => {
-          socket.emit('skip');
-        };
-      }
-      row.appendChild(ok); row.appendChild(skipBtn);
-      center.appendChild(row);
+      el.setAttribute('draggable', 'false');
     }
-  } else {
-    // non-chosen players only see timer and a message
-    const msg = document.createElement('div'); msg.className = 'small-muted';
-    msg.innerText = 'Aguardando o jogador responder...';
-    center.appendChild(msg);
+    if (p.team === 'lobby') lobbyEl.appendChild(el);
+    else if (p.team === 'team1') team1El.appendChild(el);
+    else if (p.team === 'team2') team2El.appendChild(el);
+  });
+
+  // render players list for selection (screen 4)
+  playersContainer.innerHTML = '';
+  players.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'player';
+    el.innerHTML = `<div>${escapeHtml(p.displayName)}</div><div class="badge">${p.team === 'team1' ? 'Equipe 1' : p.team === 'team2' ? 'Equipe 2' : 'Lobby'}</div>`;
+    el.addEventListener('click', () => {
+      // admin selects a player
+      if (!me.isAdmin) return;
+      socket.emit('selectPlayer', p.id);
+    });
+    // highlight selected
+    if (state && state.selectedPlayerId === p.id) {
+      el.style.outline = '2px solid rgba(29,185,84,0.18)';
+    }
+    playersContainer.appendChild(el);
+  });
+}
+
+function renderScores(scoresObj) {
+  scoreTeam1.textContent = scoresObj.team1 || 0;
+  scoreTeam2.textContent = scoresObj.team2 || 0;
+}
+
+function renderCategories(allCats, selectedCats) {
+  categoriesList.innerHTML = '';
+  allCats.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'category-row';
+    const id = 'cat-' + c;
+    row.innerHTML = `
+      <input type="checkbox" id="${id}" value="${c}" ${selectedCats.includes(c) ? 'checked' : ''} ${me.isAdmin ? '' : 'disabled'}>
+      <label for="${id}">${escapeHtml(c)}</label>
+    `;
+    categoriesList.appendChild(row);
+  });
+  modalCategories.classList.remove('hidden');
+}
+
+// utilities
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[m]; });
+}
+
+// handle server state update
+socket.on('state', (s) => {
+  state = s;
+  // if server cleared players (forceReset) it emits forceReset separate.
+  // update scores
+  renderScores(s.scores || { team1:0, team2:0 });
+
+  // if no admin present, go to screen 1 (only input)
+  const adminExists = (s.players || []).some(p => p.isAdmin);
+  if (!adminExists) {
+    // server requires admin for app to advance: show screen 1
+    showScreen(1);
+    return;
   }
 
-  card.appendChild(center);
-  app.appendChild(card);
-}
+  // if we haven't set our own me.displayName, set from players list if present
+  const mePlayer = (s.players || []).find(p => p.id === me.id);
+  if (mePlayer) {
+    me.displayName = mePlayer.displayName;
+    me.isAdmin = mePlayer.isAdmin;
+  }
 
-/* Screen 6 - show results words (green/red) and button categorias */
-function renderScreen6(s) {
-  const card = document.createElement('div'); card.className = 'card';
-  card.innerHTML = `<div class="h1">Resultados</div><div class="h2">Palavras acertadas/puladas</div>`;
-  const list = document.createElement('div'); list.className = 'list';
-  (s.currentRound && s.currentRound.wordStatuses || []).forEach(w => {
-    const item = document.createElement('div');
-    item.className = 'player';
-    const color = w.status === 'correct' ? 'color: #10B981' : 'color: #EF4444';
-    item.innerHTML = `<div style="flex:1"><div style="font-weight:700; ${color}">${w.word}</div><div class="small">${w.status}</div></div>`;
-    list.appendChild(item);
-  });
-  card.appendChild(list);
+  // if joined (have me.id), show lobby screen by default
+  if (me.id) {
+    showScreen(2);
+  }
 
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.style.marginTop = '12px';
-  btn.innerText = 'Categorias';
-  btn.onclick = () => {
-    if (!isAdmin) {
-      alert('Apenas admin pode mexer nas categorias.');
-      return;
+  // render lists
+  renderPlayersLists(s.players || []);
+
+  // categories for modal
+  // store local selection to present in modal
+  localSelectedCategories = s.categoriesSelected || [];
+  // Prepare modal categories UI when opened (not automatically)
+  // show selection screen (screen4) when admin selected player exists
+  if (s.selectedPlayerId) {
+    // show selection panel so everyone sees players list and admin selection highlight
+    showScreen(4);
+  }
+
+  // handle round active
+  if (s.roundActive && s.roundInfo) {
+    // someone started a round
+    endTime = s.roundInfo.endTime;
+    const currentPlayerId = s.roundInfo.currentPlayerId;
+    if (currentPlayerId === me.id) {
+      // I'm active player -> show 5a
+      showScreen('5a');
+    } else {
+      // spectator -> show 5b
+      showScreen('5b');
     }
-    socket.emit('gotoScreen', 3);
-  };
-  card.appendChild(btn);
+    // render current word (if active)
+    if (s.roundInfo.currentWord) {
+      wordArea.textContent = s.roundInfo.currentWord;
+      wordArea.classList.remove('hidden');
+      skipText.classList.add('hidden');
+    } else {
+      // maybe skipping
+      wordArea.textContent = '';
+      if (s.roundInfo.skipUntil && Date.now() < s.roundInfo.skipUntil) {
+        skipText.classList.remove('hidden');
+        wordArea.classList.add('hidden');
+      } else {
+        wordArea.classList.remove('hidden');
+        skipText.classList.add('hidden');
+      }
+    }
 
-  // scores
-  const scores = document.createElement('div');
-  scores.className = 'small-muted';
-  scores.style.marginTop = '12px';
-  scores.innerText = `Placar — Equipe 1: ${s.scores?.team1||0}  |  Equipe 2: ${s.scores?.team2||0}`;
-  card.appendChild(scores);
+    // pular should disappear when <=5s
+    const remaining = Math.max(0, Math.round((endTime - Date.now())/1000));
+    if (remaining <= 5) {
+      btnSkip.style.display = 'none';
+    } else {
+      btnSkip.style.display = '';
+    }
 
-  app.appendChild(card);
+    // keep the countdown in sync using rAF
+    startCountdownLoop();
+  } else {
+    // no active round: hide round screens, show results if round just ended? The server will emit roundEnded separate.
+    stopCountdownLoop();
+  }
+
+  // results list update
+  if (s.roundInfo && s.roundInfo.wordHistory) {
+    resultsList.innerHTML = '';
+    s.roundInfo.wordHistory.forEach(entry => {
+      const div = document.createElement('div');
+      div.className = 'result-item ' + (entry.status === 'correct' ? 'correct' : 'skipped');
+      div.innerHTML = `<div>${escapeHtml(entry.word)}</div><div>${entry.status === 'correct' ? '+' : '-'}</div>`;
+      resultsList.appendChild(div);
+    });
+  }
+});
+
+// a forced reset by server (admin left)
+socket.on('forceReset', () => {
+  // clear client state and go back to screen 1
+  me = { id: null, isAdmin: false, displayName: null };
+  state = null;
+  endTime = null;
+  stopCountdownLoop();
+  // clear UI
+  lobbyEl.innerHTML = '';
+  team1El.innerHTML = '';
+  team2El.innerHTML = '';
+  resultsList.innerHTML = '';
+  showScreen(1);
+  // clear name input
+  nameInput.value = '';
+});
+
+// round started notification (server didn't require clients to act)
+socket.on('roundStarted', (info) => {
+  endTime = info.endTime;
+  // UI will be reconciled by 'state' events which also arrive frequently
+});
+
+// round ended
+socket.on('roundEnded', (res) => {
+  // show results screen (6)
+  showScreen(6);
+  // render results already updated via state, but ensure we show list from res if available
+  if (res && res.wordHistory) {
+    resultsList.innerHTML = '';
+    res.wordHistory.forEach(entry => {
+      const div = document.createElement('div');
+      div.className = 'result-item ' + (entry.status === 'correct' ? 'correct' : 'skipped');
+      div.innerHTML = `<div>${escapeHtml(entry.word)}</div><div>${entry.status === 'correct' ? '+' : '-'}</div>`;
+      resultsList.appendChild(div);
+    });
+  }
+});
+
+// adminAdvance simple handler (not used heavily)
+socket.on('adminAdvance', () => {
+  // server-driven global advance — for simplicity just go to lobby if no round
+  showScreen(2);
+});
+
+// server instructs to go to lobby
+socket.on('goToLobby', () => {
+  showScreen(2);
+});
+
+// helper timers
+function startCountdownLoop() {
+  if (rafTimer) return;
+  function tick() {
+    if (!endTime) {
+      stopCountdownLoop(); return;
+    }
+    const ms = Math.max(0, endTime - Date.now());
+    const sec = Math.ceil(ms / 1000);
+    // show integer seconds (big)
+    if (!screen5a.classList.contains('hidden')) {
+      roundTime.textContent = (sec).toString();
+      // hide skip when <=5s
+      if (ms <= 5000) btnSkip.style.display = 'none';
+      else btnSkip.style.display = '';
+    }
+    if (!screen5b.classList.contains('hidden')) {
+      roundTime2.textContent = (sec).toString();
+    }
+    rafTimer = requestAnimationFrame(tick);
+  }
+  rafTimer = requestAnimationFrame(tick);
 }
 
-/* utils */
-function formatTime(sec) {
-  if (sec < 0) sec = 0;
-  const s = sec % 60;
-  const m = Math.floor(sec / 60);
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+function stopCountdownLoop() {
+  if (rafTimer) cancelAnimationFrame(rafTimer);
+  rafTimer = null;
 }
 
-function updateTimer(remaining) {
-  // simple rerender
-  renderApp();
+// open categories modal with current categories
+function openCategoriesModal() {
+  // state holds categoriesAvailable and selected
+  if (!state) return;
+  const all = state.categoriesAvailable || [];
+  const selected = state.categoriesSelected || [];
+  renderCategoriesModal(all, selected);
+  modalCategories.classList.remove('hidden');
 }
 
-/* On initial load, fetch words.json so client can display categories in screen 3 nicely */
-fetch('/words.json').then(r => r.json()).then(data => {
-  window.initialWords = data;
-}).catch(()=>{ window.initialWords = {}; });
+function renderCategoriesModal(all, selected) {
+  categoriesList.innerHTML = '';
+  all.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'category-row';
+    const id = 'cat-' + c;
+    row.innerHTML = `
+      <input type="checkbox" id="${id}" value="${c}" ${selected.includes(c) ? 'checked' : ''} ${me.isAdmin ? '' : 'disabled'}>
+      <label for="${id}">${escapeHtml(c)}</label>
+    `;
+    categoriesList.appendChild(row);
+  });
+}
 
-/* Small: when user reloads, they must confirm (browser handled via beforeunload) */
+// helper escape for inner text already above
+
+// update state wrapper to keep latest state
+socket.on('state', (s) => {
+  state = s;
+});
+
+
+// UI: selection of chosen player and show "Iniciar" only to selected player
+// To show "Iniciar" button: we add a control in the players list when appropriate
+function updateSelectionUI() {
+  // called after state update; add an "Iniciar" button for the selected player only visible to that player
+  if (!state) return;
+  const selectedId = state.selectedPlayerId;
+  // clear previous
+  // we will render a little area in screen 4 players list
+  // (playersContainer is re-rendered on each state update)
+}
+
+// Add dynamic behavior: when screen-4 is visible, show start button to selected player
+const observer = new MutationObserver(() => {
+  // when players list is re-rendered, attach "Iniciar" button to the selected player if it's me
+  if (!state) return;
+  if (!state.selectedPlayerId) return;
+  if (state.selectedPlayerId !== me.id) return;
+  // find the player's node in playersContainer
+  Array.from(playersContainer.children).forEach(div => {
+    // text content contains display name; match by state players
+    // simpler: append button at bottom if I'm selected
+  });
+});
+observer.observe(playersContainer, { childList: true, subtree: true });
+
+// Simpler approach: watch server state changes and if I'm the selected player, show a small floating start button
+const floatingStart = document.createElement('button');
+floatingStart.className = 'btn large';
+floatingStart.textContent = 'Iniciar';
+floatingStart.style.position = 'fixed';
+floatingStart.style.bottom = '18px';
+floatingStart.style.left = '50%';
+floatingStart.style.transform = 'translateX(-50%)';
+floatingStart.style.zIndex = '50';
+floatingStart.style.display = 'none';
+floatingStart.addEventListener('click', () => {
+  socket.emit('startRound');
+});
+document.body.appendChild(floatingStart);
+
+// react to state changes to display floating start
+socket.on('state', (s) => {
+  state = s;
+  // show start if I'm the selected player and not in a round
+  if (s.selectedPlayerId === me.id && !s.roundActive) {
+    floatingStart.style.display = '';
+  } else {
+    floatingStart.style.display = 'none';
+  }
+
+  // Render players lists and scores (also done earlier)
+  renderPlayersLists(s.players || []);
+  renderScores(s.scores || { team1:0, team2:0 });
+
+  // categories selected store
+  localSelectedCategories = s.categoriesSelected || [];
+
+  // show appropriate screens
+  const adminExists = (s.players || []).some(p => p.isAdmin);
+  if (!adminExists) {
+    showScreen(1);
+    return;
+  }
+
+  // if round active -> screens 5a/5b handled earlier by separate handler
+  if (!s.roundActive && s.selectedPlayerId) {
+    // show selection screen
+    showScreen(4);
+  } else if (!s.roundActive && !s.selectedPlayerId) {
+    // show lobby / teams
+    showScreen(2);
+  }
+
+  // update results list for screen 6 if present
+  if (s.roundInfo && s.roundInfo.wordHistory) {
+    resultsList.innerHTML = '';
+    s.roundInfo.wordHistory.forEach(entry => {
+      const div = document.createElement('div');
+      div.className = 'result-item ' + (entry.status === 'correct' ? 'correct' : 'skipped');
+      div.innerHTML = `<div>${escapeHtml(entry.word)}</div><div>${entry.status === 'correct' ? '+' : '-'}</div>`;
+      resultsList.appendChild(div);
+    });
+  }
+
+  // update round visuals if active
+  if (s.roundActive) {
+    endTime = s.roundInfo.endTime;
+    if (s.roundInfo.currentPlayerId === me.id) {
+      showScreen('5a');
+      // show/hide skip depending on skip state and remaining
+      if (s.roundInfo.skipUntil && Date.now() < s.roundInfo.skipUntil) {
+        skipText.classList.remove('hidden');
+        wordArea.classList.add('hidden');
+      } else {
+        skipText.classList.add('hidden');
+        wordArea.classList.remove('hidden');
+      }
+      if (s.roundInfo.currentWord) {
+        wordArea.textContent = s.roundInfo.currentWord;
+      } else {
+        wordArea.textContent = '';
+      }
+    } else {
+      showScreen('5b');
+    }
+    startCountdownLoop();
+  } else {
+    stopCountdownLoop();
+  }
+});
+
+// small helper to show modal categories with current selection (when opened)
+function renderCategoriesModal(all, selected) {
+  categoriesList.innerHTML = '';
+  all.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'category-row';
+    const id = 'cat-' + c;
+    row.innerHTML = `
+      <input type="checkbox" id="${id}" value="${c}" ${selected.includes(c) ? 'checked' : ''} ${me.isAdmin ? '' : 'disabled'}>
+      <label for="${id}">${escapeHtml(c)}</label>
+    `;
+    categoriesList.appendChild(row);
+  });
+  modalCategories.classList.remove('hidden');
+}
+
+// when server asks to open categories via buttons earlier
+btnCategorias.addEventListener('click', () => {
+  if (!state) return;
+  renderCategoriesModal(state.categoriesAvailable || [], state.categoriesSelected || []);
+});
+btnCategorias2.addEventListener('click', () => {
+  if (!state) return;
+  renderCategoriesModal(state.categoriesAvailable || [], state.categoriesSelected || []);
+});
+
+// small UX: if user clicks anywhere outside modal, close it
+modalCategories.addEventListener('click', (e) => {
+  if (e.target === modalCategories) modalCategories.classList.add('hidden');
+});
