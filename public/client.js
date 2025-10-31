@@ -68,6 +68,13 @@ document.getElementById('backToCategoriesBtn').addEventListener('click', () => {
     socket.emit('backToCategories');
 });
 
+document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('screen1').style.display = 'block';
+    document.getElementById('screen2').style.display = 'none';
+    document.getElementById('screen3').style.display = 'none';
+    document.getElementById('screen4').style.display = 'none';
+});
+
 socket.on('connect', () => {
     myId = socket.id;
 });
