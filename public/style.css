@@ -22,8 +22,8 @@ body{background:linear-gradient(180deg,#0f0f0f,var(--bg));font-family:Inter,syst
 .row{display:flex;gap:8px}
 .hidden{display:none}
 .topbar{position:sticky;top:0;background:linear-gradient(180deg,rgba(0,0,0,0.2),transparent);padding:10px;z-index:10}
-.menu{display:flex;gap:8px}
-.menu-btn{background:transparent;border:2px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);font-weight:700}
+.menu{display:flex;gap:8px; z-index: 9999}
+.menu-btn{background:transparent;border:2px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);font-weight:700; z-index: 9999}
 .lobby-area{display:flex;gap:8px;margin-top:12px}
 .column{flex:1}
 .list{list-style:none;padding:8px;min-height:120px;background:#0d0d0d;border-radius:10px}
