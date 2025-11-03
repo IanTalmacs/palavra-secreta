@@ -1,222 +1,326 @@
 const socket = io();
-let role = null;
-let isAdmin = false;
-let myId = null;
+let me = { id: null, name: null, role: 'visitor' };
+let categories = [];
+let scores = { equipe1: 0, equipe2: 0 };
 let selectedCategory = null;
 let selectedPlayerId = null;
-let categories = [];
-let players = [];
-const elems = {
-  screen1: document.getElementById("screen1"),
-  screen2: document.getElementById("screen2"),
-  screen3: document.getElementById("screen3"),
-  screen4: document.getElementById("screen4"),
-  screen5: document.getElementById("screen5"),
-  btnVisitante: document.getElementById("btn-visitante"),
-  btnAdmin: document.getElementById("btn-admin"),
-  btnCategorias: document.getElementById("btn-categorias"),
-  btnReset: document.getElementById("btn-reset"),
-  score0: document.getElementById("score0"),
-  score1: document.getElementById("score1"),
-  categoriesDiv: document.getElementById("categories"),
-  playersList: document.getElementById("playersList"),
-  startRoundBtn: document.getElementById("startRoundBtn"),
-  countdown: document.getElementById("countdown"),
-  wordDisplay: document.getElementById("wordDisplay"),
-  acertouBtn: document.getElementById("acertouBtn"),
-  pularBtn: document.getElementById("pularBtn"),
-  roundResults: document.getElementById("roundResults"),
-  continueBtn: document.getElementById("continueBtn")
-};
-function showScreen(n){
-  elems.screen1.classList.add("hidden");
-  elems.screen2.classList.add("hidden");
-  elems.screen3.classList.add("hidden");
-  elems.screen4.classList.add("hidden");
-  elems.screen5.classList.add("hidden");
-  if(n===1) elems.screen1.classList.remove("hidden");
-  if(n===2) elems.screen2.classList.remove("hidden");
-  if(n===3) elems.screen3.classList.remove("hidden");
-  if(n===4) elems.screen4.classList.remove("hidden");
-  if(n===5) elems.screen5.classList.remove("hidden");
+let roundActiveForMe = false;
+let roundTimer = null;
+let roundRemaining = 75;
+
+const initialScreen = document.getElementById('initial-screen');
+const nameInput = document.getElementById('nameInput');
+const confirmName = document.getElementById('confirmName');
+const roleButtons = document.getElementById('roleButtons');
+const btnVisitor = document.getElementById('btnVisitor');
+const btnAdmin = document.getElementById('btnAdmin');
+const adminPass = document.getElementById('adminPass');
+const passInput = document.getElementById('passInput');
+const submitPass = document.getElementById('submitPass');
+
+const gameScreen = document.getElementById('game-screen');
+const categoryButtons = document.getElementById('categoryButtons');
+const playerButtons = document.getElementById('playerButtons');
+const startRoundWrap = document.getElementById('startRoundWrap');
+const startRoundBtn = document.getElementById('startRoundBtn');
+
+const score1El = document.getElementById('score1');
+const score2El = document.getElementById('score2');
+const resetBtn = document.getElementById('resetBtn');
+
+const roundSection = document.getElementById('roundSection');
+const roundTimerEl = document.getElementById('roundTimer');
+const roundWordEl = document.getElementById('roundWord');
+const correctBtn = document.getElementById('correctBtn');
+const skipBtn = document.getElementById('skipBtn');
+const skipMessage = document.getElementById('skipMessage');
+
+const verification = document.getElementById('verification');
+const verificationList = document.getElementById('verificationList');
+const continueBtn = document.getElementById('continueBtn');
+
+confirmName.addEventListener('click', ()=>{
+  const name = nameInput.value.trim() || 'Visitante';
+  me.name = name;
+  socket.emit('join', { name });
+  roleButtons.classList.remove('hidden');
+});
+
+btnVisitor.addEventListener('click', ()=>{
+  socket.emit('becomeVisitor');
+  enterGame();
+});
+
+btnAdmin.addEventListener('click', ()=>{
+  adminPass.classList.remove('hidden');
+  roleButtons.classList.add('hidden');
+});
+
+submitPass.addEventListener('click', ()=>{
+  const pass = passInput.value || '';
+  socket.emit('becomeAdmin', { password: pass });
+});
+
+socket.on('adminAccepted', ()=>{
+  enterGame();
+  me.role = 'admin';
+  updateAdminUI();
+});
+
+socket.on('adminDenied', ()=>{
+  alert('Senha incorreta');
+});
+
+function enterGame(){
+  initialScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+  updateAdminUI();
 }
-showScreen(1);
-window.addEventListener("beforeunload", function (e) {
+
+socket.on('init', (data)=>{
+  categories = data.categories || [];
+  scores = data.scores || scores;
+  renderCategories();
+  updateScores();
+});
+
+socket.on('players', (list)=>{
+  renderPlayers(list);
+});
+
+socket.on('state', (s)=>{
+  categories = s.categories || categories;
+  selectedCategory = s.selectedCategory || null;
+  selectedPlayerId = s.selectedPlayerId || null;
+  renderCategories();
+  renderPlayersFromState(s.players || []);
+  updateScoresDisplay(s.scores || scores);
+  if (!s.currentRoundActive) {
+    hideRoundForAll();
+  }
+});
+
+socket.on('scores', (sc)=>{
+  scores = sc;
+  updateScores();
+});
+
+function updateScoresDisplay(sc){
+  if (!sc) return;
+  scores = sc;
+  updateScores();
+}
+
+function updateScores(){
+  score1El.textContent = scores.equipe1;
+  score2El.textContent = scores.equipe2;
+}
+
+function updateAdminUI(){
+  if (me.role === 'admin') {
+    document.querySelectorAll('.score-controls .btn').forEach(b=>b.style.display='inline-block');
+    resetBtn.style.display = 'inline-block';
+    document.querySelectorAll('.btn.catBtn, .btn.playerBtn').forEach(b=>{
+      b.disabled = false;
+    });
+  } else {
+    document.querySelectorAll('.score-controls .btn').forEach(b=>b.style.display='none');
+    resetBtn.style.display = 'none';
+  }
+}
+
+function renderCategories(){
+  categoryButtons.innerHTML = '';
+  categories.forEach(cat=>{
+    const b = document.createElement('button');
+    b.className = 'btn catBtn';
+    b.textContent = cat;
+    b.dataset.cat = cat;
+    if (selectedCategory === cat) b.classList.add('selected');
+    b.addEventListener('click', ()=>{
+      if (me.role !== 'admin') return;
+      selectedCategory = cat;
+      socket.emit('selectCategory', cat);
+      document.querySelectorAll('.btn.catBtn').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+      checkStartVisible();
+    });
+    categoryButtons.appendChild(b);
+  });
+}
+
+function renderPlayers(list){
+  playerButtons.innerHTML = '';
+  list.forEach(p=>{
+    const b = document.createElement('button');
+    b.className = 'btn playerBtn';
+    b.textContent = p.name + (p.role === 'admin' ? ' (Admin)' : '');
+    b.dataset.id = p.id;
+    b.addEventListener('click', ()=>{
+      if (me.role !== 'admin') {
+        if (p.id === me.id) {
+          selectedPlayerId = p.id;
+          checkStartVisible();
+        }
+        return;
+      }
+      selectedPlayerId = p.id;
+      socket.emit('selectPlayer', p.id);
+      document.querySelectorAll('.btn.playerBtn').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+      checkStartVisible();
+    });
+    playerButtons.appendChild(b);
+  });
+}
+
+function renderPlayersFromState(list){
+  playerButtons.innerHTML = '';
+  list.forEach(p=>{
+    const b = document.createElement('button');
+    b.className = 'btn playerBtn';
+    b.textContent = p.name + (p.role === 'admin' ? ' (Admin)' : '');
+    b.dataset.id = p.id;
+    if (selectedPlayerId === p.id) b.classList.add('selected');
+    b.addEventListener('click', ()=>{
+      if (me.role !== 'admin') {
+        if (p.id === me.id) {
+          selectedPlayerId = p.id;
+          checkStartVisible();
+        }
+        return;
+      }
+      selectedPlayerId = p.id;
+      socket.emit('selectPlayer', p.id);
+      document.querySelectorAll('.btn.playerBtn').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+      checkStartVisible();
+    });
+    playerButtons.appendChild(b);
+  });
+  checkStartVisible();
+}
+
+function checkStartVisible(){
+  if (selectedCategory && selectedPlayerId && me.role === 'admin') {
+    startRoundWrap.classList.remove('hidden');
+  } else {
+    startRoundWrap.classList.add('hidden');
+  }
+}
+
+startRoundBtn.addEventListener('click', ()=>{
+  socket.emit('startRound');
+});
+
+socket.on('roundStart', ({duration})=>{
+  roundActiveForMe = true;
+  roundRemaining = duration;
+  roundSection.classList.remove('collapsed');
+  roundSection.classList.add('expanded');
+  verification.classList.add('collapsed');
+  startLocalTimer();
+});
+
+socket.on('roundWord', ({word, remaining})=>{
+  roundWordEl.textContent = word;
+  roundRemaining = remaining;
+  roundTimerEl.textContent = remaining;
+});
+
+socket.on('roundHiddenForAll', ({except})=>{
+  if (socket.id !== except) {
+    hideRoundForAll();
+  }
+});
+
+function hideRoundForAll(){
+  roundSection.classList.add('collapsed');
+  roundSection.classList.remove('expanded');
+  roundActiveForMe = false;
+  stopLocalTimer();
+}
+
+function startLocalTimer(){
+  stopLocalTimer();
+  roundTimerEl.textContent = roundRemaining;
+  roundTimer = setInterval(()=>{
+    roundRemaining = Math.max(0, roundRemaining - 1);
+    roundTimerEl.textContent = roundRemaining;
+    if (roundRemaining <= 0) {
+      clearInterval(roundTimer);
+    }
+  }, 1000);
+}
+
+function stopLocalTimer(){
+  if (roundTimer) clearInterval(roundTimer);
+  roundTimer = null;
+}
+
+correctBtn.addEventListener('click', ()=>{
+  socket.emit('roundCorrect');
+});
+
+skipBtn.addEventListener('click', ()=>{
+  skipBtn.disabled = true;
+  skipMessage.textContent = 'Pulando...';
+  socket.emit('roundSkip');
+  setTimeout(()=>{
+    skipBtn.disabled = false;
+    skipMessage.textContent = '';
+  }, 3000);
+});
+
+socket.on('roundEnded', ({report})=>{
+  roundSection.classList.add('collapsed');
+  verification.classList.remove('collapsed');
+  verification.classList.add('expanded');
+  verificationList.innerHTML = '';
+  report.forEach(r=>{
+    const d = document.createElement('div');
+    d.textContent = r.word;
+    d.className = 'verItem';
+    d.style.padding = '10px';
+    d.style.borderRadius = '8px';
+    d.style.margin = '6px 0';
+    if (r.status === 'correct') {
+      d.style.background = 'rgba(34,197,94,0.15)';
+      d.style.color = '#a7f3d0';
+    } else {
+      d.style.background = 'rgba(239,68,68,0.12)';
+      d.style.color = '#fecaca';
+    }
+    verificationList.appendChild(d);
+  });
+});
+
+continueBtn.addEventListener('click', ()=>{
+  socket.emit('continueAfterVerification');
+  verification.classList.add('collapsed');
+  verification.classList.remove('expanded');
+  startRoundWrap.classList.add('hidden');
+});
+
+resetBtn.addEventListener('click', ()=>{
+  if (me.role !== 'admin') return;
+  socket.emit('reset');
+});
+
+document.querySelectorAll('.score-controls .btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    if (me.role !== 'admin') return;
+    const team = Number(b.dataset.team);
+    const delta = b.dataset.action === 'add' ? 1 : -1;
+    socket.emit('changeScore', { team, delta });
+  });
+});
+
+socket.on('resetAll', ()=>{
+  location.reload();
+});
+
+window.addEventListener('beforeunload', function (e) {
   e.preventDefault();
   e.returnValue = '';
-});
-elems.btnVisitante.addEventListener("click", ()=>{
-  role = "visitor";
-  socket.emit("register", { role: "visitor" });
-  showScreen(2);
-});
-elems.btnAdmin.addEventListener("click", async ()=>{
-  const pwd = prompt("Senha de Admin:");
-  if(pwd===null) return;
-  socket.emit("register", { role: "admin", password: pwd });
-});
-elems.btnCategorias.addEventListener("click", ()=>{
-  if(!isAdmin) return;
-  socket.emit("open_categories");
-});
-elems.btnReset.addEventListener("click", ()=>{
-  if(!isAdmin) return;
-  socket.emit("reset");
-});
-document.querySelectorAll(".top-btn").forEach(b=>{
-  b.addEventListener("click",(e)=>{
-    const action = b.getAttribute("data-action");
-    const team = parseInt(b.getAttribute("data-team"));
-    if(!action) return;
-    if(!isAdmin) return;
-    if(action==="inc") socket.emit("score_change",{team,delta:1});
-    if(action==="dec") socket.emit("score_change",{team,delta:-1});
-  });
-});
-socket.on("connect", ()=>{
-  myId = socket.id;
-  socket.emit("get_state");
-});
-socket.on("register_result", (data)=>{
-  if(!data.success){
-    alert("Senha incorreta");
-    return;
-  }
-  isAdmin = data.isAdmin;
-  role = isAdmin ? "admin" : "visitor";
-  if(isAdmin){
-    showScreen(3);
-  }else{
-    showScreen(2);
-  }
-});
-socket.on("state", (s)=>{
-  if(s.scores){
-    elems.score0.textContent = s.scores[0]||0;
-    elems.score1.textContent = s.scores[1]||0;
-  }
-  categories = s.categories || [];
-  renderCategories();
-});
-socket.on("players_update", (list)=>{
-  players = list;
-  renderPlayers();
-});
-socket.on("score_update", (payload)=>{
-  elems.score0.textContent = payload.scores[0]||0;
-  elems.score1.textContent = payload.scores[1]||0;
-});
-socket.on("reset_game", ()=>{
-  selectedCategory = null;
-  selectedPlayerId = null;
-  renderCategories();
-  renderPlayers();
-  showScreen(1);
-});
-socket.on("show_screen", ({screen})=>{
-  if(screen===3 && isAdmin) showScreen(3);
-});
-socket.on("round_started", ({remaining})=>{
-  if(socket.id === myId){
-  }
-});
-socket.on("new_word", ({word})=>{
-  elems.wordDisplay.textContent = word;
-});
-socket.on("round_tick", ({remaining})=>{
-  elems.countdown.textContent = remaining;
-});
-socket.on("puling", ()=>{
-  elems.wordDisplay.textContent = "pulando...";
-});
-socket.on("round_ended", ({words,playerId})=>{
-  elems.roundResults.innerHTML = "";
-  words.forEach(it=>{
-    const div = document.createElement("div");
-    div.className = "result-item " + (it.status==="guessed" ? "guessed" : "skipped");
-    div.textContent = it.word;
-    elems.roundResults.appendChild(div);
-  });
-  showScreen(5);
-});
-elems.startRoundBtn.addEventListener("click", ()=>{
-  if(!isAdmin) return;
-  if(!selectedCategory || !selectedPlayerId) return;
-  socket.emit("start_round", { category: selectedCategory, targetId: selectedPlayerId });
-});
-elems.acertouBtn.addEventListener("click", ()=>{
-  socket.emit("acertou");
-});
-elems.pularBtn.addEventListener("click", ()=>{
-  socket.emit("pular");
-});
-elems.continueBtn.addEventListener("click", ()=>{
-  socket.emit("continue_after_round");
-  if(isAdmin) showScreen(3); else showScreen(2);
-});
-socket.on("after_round_continue", ()=>{
-  if(isAdmin) showScreen(3); else showScreen(2);
-});
-function renderCategories(){
-  elems.categoriesDiv.innerHTML = "";
-  categories.forEach(cat=>{
-    const b = document.createElement("button");
-    b.className = "chip" + (selectedCategory===cat ? " selected" : "");
-    b.textContent = cat;
-    b.addEventListener("click", ()=>{
-      if(!isAdmin) return;
-      if(selectedCategory===cat) selectedCategory = null; else selectedCategory = cat;
-      renderCategories();
-      updateStartButton();
-    });
-    elems.categoriesDiv.appendChild(b);
-  });
-}
-function renderPlayers(){
-  elems.playersList.innerHTML = "";
-  players.forEach(p=>{
-    const b = document.createElement("button");
-    b.className = "chip" + (selectedPlayerId===p.id ? " selected" : "");
-    b.textContent = p.name + (p.isAdmin ? " (Admin)" : "");
-    b.addEventListener("click", ()=>{
-      if(!isAdmin) return;
-      if(selectedPlayerId===p.id) selectedPlayerId = null; else selectedPlayerId = p.id;
-      renderPlayers();
-      updateStartButton();
-    });
-    elems.playersList.appendChild(b);
-  });
-}
-function updateStartButton(){
-  if(selectedCategory && selectedPlayerId){
-    elems.startRoundBtn.classList.remove("hidden");
-  }else{
-    elems.startRoundBtn.classList.add("hidden");
-  }
-}
-socket.on("connect_error", ()=>{});
-socket.on("disconnect", ()=>{});
-socket.on("show_screen", (d)=>{ if(d.screen===1) showScreen(1); if(d.screen===2) showScreen(2); if(d.screen===3 && isAdmin) showScreen(3); });
-socket.on("round_started", ({remaining})=>{
-  if(socket.id === myId) {}
-});
-socket.on("new_word", ({word})=>{
-  elems.wordDisplay.textContent = word;
-});
-socket.on("round_tick", ({remaining})=>{
-  elems.countdown.textContent = remaining;
-});
-socket.on("round_ended", ({words})=>{
-});
-socket.on("players_update", (list)=>{
-  players = list;
-  renderPlayers();
-});
-socket.on("state", (s)=>{
-  if(s.scores){
-    elems.score0.textContent = s.scores[0]||0;
-    elems.score1.textContent = s.scores[1]||0;
-  }
-  categories = s.categories || categories;
-  renderCategories();
 });
