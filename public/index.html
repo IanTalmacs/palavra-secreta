@@ -2,95 +2,73 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Jogo</title>
-<link rel="stylesheet" href="style.css" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Jogo Spotify Style</title>
+<link rel="stylesheet" href="style.css">
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<div id="app">
-  <div id="screen1" class="screen active">
-    <div class="card">
-      <h1 class="title">Digite seu nome</h1>
-      <input id="nameInput" class="large-input" placeholder="Seu nome" />
-      <div class="row">
-        <button id="confirmName" class="btn large">Confirmar nome</button>
+<div id="topbar">
+  <div id="scoreboard">
+    <div class="team" data-team="0">
+      <div class="team-name">Equipe 1</div>
+      <div class="team-score" id="score0">0</div>
+      <div class="score-controls">
+        <button class="top-btn small" data-action="dec" data-team="0">-</button>
+        <button class="top-btn small" data-action="inc" data-team="0">+</button>
       </div>
     </div>
-    <div id="roleButtons" class="card hidden">
-      <button id="visitorBtn" class="btn big">Visitante</button>
-      <button id="adminBtn" class="btn big outline">Admin</button>
-    </div>
-  </div>
-
-  <div id="screen2a" class="screen">
-    <div class="card centered">
-      <h2>Aguardando Admin iniciar o jogo</h2>
-    </div>
-  </div>
-
-  <div id="screen2b" class="screen">
-    <div class="topbar">
-      <div class="menu">
-        <button class="menu-btn" data-screen="2">Tela 2</button>
-        <button class="menu-btn" data-screen="3">Tela 3</button>
-        <button class="menu-btn" data-screen="5">Tela 5</button>
-        <button id="resetBtn" class="menu-btn">R</button>
+    <div class="vs">vs</div>
+    <div class="team" data-team="1">
+      <div class="team-name">Equipe 2</div>
+      <div class="team-score" id="score1">0</div>
+      <div class="score-controls">
+        <button class="top-btn small" data-action="dec" data-team="1">-</button>
+        <button class="top-btn small" data-action="inc" data-team="1">+</button>
       </div>
     </div>
-    <div class="lobby-area">
-      <div class="column">
-        <h3>Lobby</h3>
-        <ul id="lobbyList" class="list"></ul>
-      </div>
-      <div class="column">
-        <h3>Equipe 1</h3>
-        <ul id="team1List" class="list dropzone" data-team="team1"></ul>
-      </div>
-      <div class="column">
-        <h3>Equipe 2</h3>
-        <ul id="team2List" class="list dropzone" data-team="team2"></ul>
-      </div>
-    </div>
-    <div class="row center">
-      <button id="startGameBtn" class="btn large">Iniciar Jogo</button>
-    </div>
   </div>
-
-  <div id="screen3" class="screen">
-    <div class="scorebar">
-      <div>Equipe 1: <span id="score1">0</span></div>
-      <div>Equipe 2: <span id="score2">0</span></div>
-    </div>
-    <div id="categories" class="categories"></div>
-    <div id="playersBtns" class="player-buttons"></div>
-    <div id="startRoundWrapper" class="center"></div>
-  </div>
-
-  <div id="screen4a" class="screen">
-    <div class="timer" id="timerA">75</div>
-    <div class="word-display" id="currentWord">Palavra</div>
-    <div class="round-controls">
-      <button id="correctBtn" class="round-btn green">ACERTOU</button>
-      <button id="skipBtn" class="round-btn red">PULAR</button>
-    </div>
-  </div>
-
-  <div id="screen4b" class="screen">
-    <div class="timer" id="timerB">75</div>
-    <div class="center"><h2>Aguardando jogador</h2></div>
-  </div>
-
-  <div id="screen5" class="screen">
-    <div class="results card">
-      <h2>Palavras</h2>
-      <ul id="wordsList" class="words-list"></ul>
-      <div class="row center">
-        <button id="advanceBtn" class="btn large">Avançar</button>
-      </div>
-    </div>
+  <div id="top-actions">
+    <button id="btn-categorias" class="top-btn">Categorias</button>
+    <button id="btn-reset" class="top-btn danger">Resetar</button>
   </div>
 </div>
+<main id="app">
+  <section id="screen1" class="screen">
+    <div class="center">
+      <button class="big" id="btn-visitante">Visitante</button>
+      <button class="big" id="btn-admin">Admin</button>
+    </div>
+  </section>
+  <section id="screen2" class="screen hidden">
+    <div class="center">
+      <div class="waiting">Aguardando</div>
+    </div>
+  </section>
+  <section id="screen3" class="screen hidden">
+    <div class="center-col">
+      <div id="categories" class="chips"></div>
+      <div id="playersList" class="chips players"></div>
+      <button id="startRoundBtn" class="big primary hidden">começar round</button>
+    </div>
+  </section>
+  <section id="screen4" class="screen hidden">
+    <div class="center-col">
+      <div id="countdown" class="countdown">75</div>
+      <div id="wordDisplay" class="word">---</div>
+      <div class="round-controls">
+        <button id="acertouBtn" class="circle big positive">acertou</button>
+        <button id="pularBtn" class="circle big negative">pular</button>
+      </div>
+    </div>
+  </section>
+  <section id="screen5" class="screen hidden">
+    <div class="center-col">
+      <div id="roundResults" class="results"></div>
+      <button id="continueBtn" class="big primary">Continuar</button>
+    </div>
+  </section>
+</main>
 <script src="client.js"></script>
 </body>
 </html>
