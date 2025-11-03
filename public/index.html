@@ -1,106 +1,104 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jogo de Palavras</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Palavra Game</title>
+<link rel="stylesheet" href="style.css" />
+<script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <div id="app">
-        <div id="screen1" class="screen">
-            <div class="header">
-                <h1>Jogo de Palavras</h1>
-            </div>
-            
-            <div class="name-section">
-                <input type="text" id="nameInput" placeholder="Digite seu nome" maxlength="20">
-                <button id="confirmNameBtn" class="btn-primary">Confirmar Nome</button>
-            </div>
+<div id="app">
+  <div id="screen-1" class="screen active">
+    <div class="card">
+      <h1 class="title">Digite seu nome</h1>
+      <input id="name-input" class="big-input" placeholder="Seu nome" />
+      <button id="confirm-name" class="big-button">Confirmar nome</button>
+      <div id="role-choice" class="role-row hidden">
+        <button id="visitor-btn" class="big-button outline">Visitante</button>
+        <button id="admin-btn" class="big-button outline">Admin</button>
+      </div>
+      <div id="admin-prompt" class="hidden">
+        <input id="admin-pass" class="big-input" placeholder="Senha do Admin" />
+        <button id="admin-submit" class="big-button">Entrar como Admin</button>
+      </div>
+    </div>
+  </div>
 
-            <div class="teams-section">
-                <div class="team-container">
-                    <h2>Equipe 1</h2>
-                    <div id="team1" class="team-box"></div>
-                </div>
-                
-                <div class="team-container">
-                    <h2>Equipe 2</h2>
-                    <div id="team2" class="team-box"></div>
-                </div>
-            </div>
+  <div id="screen-2a" class="screen">
+    <div class="card centered">
+      <h2>Aguardando Admin iniciar o jogo</h2>
+    </div>
+  </div>
 
-            <button id="goToCategoriesBtn" class="btn-primary" style="display: none;">Categorias</button>
-        </div>
+  <div id="screen-2b" class="screen">
+    <div class="top-row">
+      <div class="panel">
+        <h3>Lobby</h3>
+        <div id="lobby-list" class="list"></div>
+      </div>
+      <div class="panel">
+        <h3>Equipe 1</h3>
+        <div id="team1-list" class="list droppable" data-team="team1"></div>
+      </div>
+      <div class="panel">
+        <h3>Equipe 2</h3>
+        <div id="team2-list" class="list droppable" data-team="team2"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="start-game" class="big-button primary">Iniciar Jogo</button>
+    </div>
+  </div>
 
-        <div id="screen2" class="screen" style="display: none;">
-            <div class="header">
-                <div class="score-board">
-                    <div class="score-item">
-                        <span>Equipe 1</span>
-                        <span id="score1" class="score-number">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span>Equipe 2</span>
-                        <span id="score2" class="score-number">0</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="categories-section">
-                <h2>Categorias</h2>
-                <div id="categoriesContainer" class="categories-grid"></div>
-            </div>
-
-            <div class="players-section">
-                <h2>Jogadores</h2>
-                <div id="playersContainer" class="players-grid"></div>
-            </div>
-
-            <button id="startRoundBtn" class="btn-primary">Iniciar Round</button>
-        </div>
-
-        <div id="screen3" class="screen" style="display: none;">
-            <div class="countdown-container">
-                <div id="countdown" class="countdown">75</div>
-            </div>
-
-            <div id="wordContainer" style="display: none;">
-                <div id="currentWord" class="current-word"></div>
-                
-                <div class="action-buttons">
-                    <button id="correctBtn" class="btn-round btn-correct">✓<br>Acertou</button>
-                    <button id="skipBtn" class="btn-round btn-skip">×<br>Pular</button>
-                </div>
-                
-                <div id="skippingMessage" class="skipping-message" style="display: none;">Pulando...</div>
-            </div>
-        </div>
-
-        <div id="screen4" class="screen" style="display: none;">
-            <div class="header">
-                <h1>Resultado do Round</h1>
-            </div>
-
-            <div class="results-section">
-                <div class="result-container">
-                    <h2 class="result-title correct">Palavras Acertadas</h2>
-                    <div id="correctWordsList" class="words-list"></div>
-                </div>
-
-                <div class="result-container">
-                    <h2 class="result-title skipped">Palavras Puladas</h2>
-                    <div id="skippedWordsList" class="words-list"></div>
-                </div>
-            </div>
-
-            <button id="backToCategoriesBtn" class="btn-primary">Categorias</button>
-        </div>
+  <div id="screen-3" class="screen">
+    <div class="scoreboard">
+      <div class="score">Equipe 1: <span id="score1">0</span></div>
+      <div class="score">Equipe 2: <span id="score2">0</span></div>
     </div>
 
-    <button id="resetBtn" class="reset-btn">R</button>
+    <div class="category-row" id="categories"></div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="client.js"></script>
+    <div class="players-row" id="players-buttons"></div>
+
+    <div class="controls">
+      <button id="start-round" class="big-button primary disabled">Começar Round</button>
+    </div>
+  </div>
+
+  <div id="screen-4a" class="screen">
+    <div class="top-countdown">Tempo: <span id="countdown">75</span></div>
+    <div class="word-area">
+      <div id="current-word" class="big-word">---</div>
+      <div class="action-row">
+        <button id="acertou" class="circle-button green">ACERTOU</button>
+        <button id="pular" class="circle-button red">PULAR</button>
+      </div>
+    </div>
+    <div id="round-words" class="words-list"></div>
+  </div>
+
+  <div id="screen-4b" class="screen">
+    <div class="top-countdown">Tempo: <span id="countdown-other">75</span></div>
+    <div class="centered">
+      <h2>Jogador está jogando...</h2>
+    </div>
+    <div id="round-words-other" class="words-list"></div>
+  </div>
+
+  <div id="post-round" class="screen">
+    <div class="card centered">
+      <h2>Resumo do Round</h2>
+      <div id="post-words" class="words-list"></div>
+      <div class="controls">
+        <button id="advance-btn" class="big-button primary disabled">Avançar</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="admin-r" class="r-button hidden">R</button>
+</div>
+
+<script src="client.js"></script>
 </body>
 </html>
