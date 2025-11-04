@@ -1,93 +1,80 @@
-<!-- public/index.html -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jogo em tempo real</title>
+<title>Jogo Realtime</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div id="popup" class="overlay active">
-  <div class="modal">
-    <h2>Insira seu nome</h2>
-    <input id="nameInput" placeholder="Seu nome" maxlength="30" />
+<div id="popup" class="overlay">
+  <div class="box">
+    <h2>Digite seu nome</h2>
+    <input id="nameInput" placeholder="Seu nome" />
     <button id="enterBtn">Entrar</button>
   </div>
 </div>
 <div id="app" class="container hidden">
   <header class="topbar">
-    <div class="left">
-      <h1>Jogo</h1>
-      <div id="gameTimer" class="small"></div>
-    </div>
-    <div class="right">
-      <div id="youName" class="small"></div>
-      <div id="adminBadge" class="badge hidden">ADMIN</div>
-    </div>
+    <div class="title">Jogo Realtime</div>
+    <div id="timer" class="timer"></div>
   </header>
-  <main>
-    <section id="startScreen" class="card">
-      <h3>Configuração inicial</h3>
-      <label>Nome da Equipe 1</label>
-      <input id="teamA" placeholder="Equipe 1" maxlength="30" />
-      <label>Nome da Equipe 2</label>
-      <input id="teamB" placeholder="Equipe 2" maxlength="30" />
-      <label>Senha (opcional)</label>
-      <input id="password" placeholder="12345678" type="password" />
+  <main class="main">
+    <section id="initialScreen" class="card">
+      <h3>Tela Inicial</h3>
+      <div class="field"><input id="team1" placeholder="Nome da Equipe 1" /></div>
+      <div class="field"><input id="team2" placeholder="Nome da Equipe 2" /></div>
+      <div class="field"><input id="startPassword" placeholder="Senha para iniciar" type="password" /></div>
+      <div class="actions"><button id="startGameBtn">Iniciar Jogo</button></div>
+    </section>
+    <section id="gameArea" class="card hidden">
       <div class="row">
-        <button id="startGameBtn" class="btn">Iniciar jogo</button>
-      </div>
-    </section>
-    <section id="adminPanel" class="card hidden">
-      <h3>Painel do Admin</h3>
-      <label>Categoria</label>
-      <select id="categorySelect"></select>
-      <label>Jogador</label>
-      <select id="playerSelect"></select>
-      <label>Equipe</label>
-      <select id="teamSelect"></select>
-      <div class="row">
-        <button id="startRoundBtn" class="btn">Iniciar Round</button>
-        <button id="resetBtn" class="btn warn">Reset</button>
-      </div>
-    </section>
-    <section id="statusPanel" class="card">
-      <h3>Placar</h3>
-      <div id="scores" class="scores"></div>
-      <h4>Jogadores</h4>
-      <ul id="playersList" class="simpleList"></ul>
-    </section>
-    <section id="roundPanel" class="card hidden">
-      <h3 id="roundInfo">Round</h3>
-      <div id="roundMain" class="roundMain">
-        <div id="wordArea" class="wordArea hidden">
-          <div id="currentWord" class="word">—</div>
-          <div class="controls">
-            <button id="correctBtn" class="circle green">acertou</button>
-            <button id="skipBtn" class="circle red">pular</button>
+        <div class="col left">
+          <div class="card small">
+            <h4>Jogadores</h4>
+            <ul id="playersList" class="list"></ul>
+          </div>
+          <div class="card small">
+            <h4>Painel</h4>
+            <div id="adminPanel" class="adminPanel hidden">
+              <label>Categoria</label>
+              <select id="categorySelect"></select>
+              <label>Jogador</label>
+              <select id="playerSelect"></select>
+              <label>Equipe</label>
+              <select id="teamSelect"></select>
+              <div class="actions">
+                <button id="startRoundBtn">Iniciar Round</button>
+                <button id="resetBtn" class="danger">Reset</button>
+              </div>
+            </div>
+            <div id="notAdmin" class="notAdmin">Aguardando admin...</div>
           </div>
         </div>
-        <div id="remotePlaying" class="remotePlaying hidden">
-          <div id="whoPlaying"></div>
-          <div class="small">Aguardando o jogador...</div>
+        <div class="col right">
+          <div class="card">
+            <h4>Placar</h4>
+            <div id="scores" class="scores"></div>
+          </div>
+          <div class="card">
+            <h4>Histórico de Palavras</h4>
+            <ul id="history" class="history"></ul>
+          </div>
         </div>
       </div>
-      <div class="lists">
-        <div class="listCard">
-          <h4>Acertadas</h4>
-          <ul id="acertadasList" class="simpleList"></ul>
-        </div>
-        <div class="listCard">
-          <h4>Puladas</h4>
-          <ul id="puladasList" class="simpleList"></ul>
+    </section>
+    <section id="roundUI" class="roundUI hidden">
+      <div class="roundCard">
+        <div id="roundWord" class="word">—</div>
+        <div id="skipOverlay" class="skipOverlay hidden">pulando...</div>
+        <div class="roundButtons">
+          <button id="hitBtn" class="circle green">ACERTOU</button>
+          <button id="skipBtn" class="circle red">PULAR</button>
         </div>
       </div>
     </section>
   </main>
-  <footer class="footer">
-    <div id="timeLeft" class="small"></div>
-  </footer>
+  <footer class="footer">Feito para deploy</footer>
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="client.js"></script>

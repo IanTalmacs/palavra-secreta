@@ -1,183 +1,160 @@
-// public/client.js
-const socket = io();
-let myId = null;
-let myName = null;
-let amAdmin = false;
-const popup = document.getElementById('popup');
-const enterBtn = document.getElementById('enterBtn');
-const nameInput = document.getElementById('nameInput');
-const app = document.getElementById('app');
-const youName = document.getElementById('youName');
-const adminBadge = document.getElementById('adminBadge');
-const startScreen = document.getElementById('startScreen');
-const teamAInput = document.getElementById('teamA');
-const teamBInput = document.getElementById('teamB');
-const passwordInput = document.getElementById('password');
-const startGameBtn = document.getElementById('startGameBtn');
-const adminPanel = document.getElementById('adminPanel');
-const categorySelect = document.getElementById('categorySelect');
-const playerSelect = document.getElementById('playerSelect');
-const teamSelect = document.getElementById('teamSelect');
-const startRoundBtn = document.getElementById('startRoundBtn');
-const resetBtn = document.getElementById('resetBtn');
-const playersList = document.getElementById('playersList');
-const scoresDiv = document.getElementById('scores');
-const roundPanel = document.getElementById('roundPanel');
-const roundInfo = document.getElementById('roundInfo');
-const wordArea = document.getElementById('wordArea');
-const currentWord = document.getElementById('currentWord');
-const correctBtn = document.getElementById('correctBtn');
-const skipBtn = document.getElementById('skipBtn');
-const remotePlaying = document.getElementById('remotePlaying');
-const whoPlaying = document.getElementById('whoPlaying');
-const acertadasList = document.getElementById('acertadasList');
-const puladasList = document.getElementById('puladasList');
-const gameTimer = document.getElementById('gameTimer');
-const timeLeft = document.getElementById('timeLeft');
+const socket = io()
+let myId = null
+let isAdmin = false
+let myName = ''
+const categories = [
+  {key:'animais', label:'animais'},
+  {key:'tv_cinema', label:'tv e cinema'},
+  {key:'objetos', label:'objetos'},
+  {key:'lugares', label:'lugares'},
+  {key:'pessoas', label:'pessoas'},
+  {key:'esportes_e_jogos', label:'esportes e jogos'},
+  {key:'profissoes', label:'profissões'},
+  {key:'alimentos', label:'alimentos'},
+  {key:'personagens', label:'personagens'},
+  {key:'biblico', label:'bíblico'}
+]
+const popup = document.getElementById('popup')
+const enterBtn = document.getElementById('enterBtn')
+const nameInput = document.getElementById('nameInput')
+const app = document.getElementById('app')
+const initialScreen = document.getElementById('initialScreen')
+const startGameBtn = document.getElementById('startGameBtn')
+const team1Input = document.getElementById('team1')
+const team2Input = document.getElementById('team2')
+const startPassword = document.getElementById('startPassword')
+const playersList = document.getElementById('playersList')
+const playerSelect = document.getElementById('playerSelect')
+const teamSelect = document.getElementById('teamSelect')
+const categorySelect = document.getElementById('categorySelect')
+const adminPanel = document.getElementById('adminPanel')
+const notAdmin = document.getElementById('notAdmin')
+const startRoundBtn = document.getElementById('startRoundBtn')
+const resetBtn = document.getElementById('resetBtn')
+const scoresDiv = document.getElementById('scores')
+const historyList = document.getElementById('history')
+const gameArea = document.getElementById('gameArea')
+const roundUI = document.getElementById('roundUI')
+const roundWord = document.getElementById('roundWord')
+const hitBtn = document.getElementById('hitBtn')
+const skipBtn = document.getElementById('skipBtn')
+const skipOverlay = document.getElementById('skipOverlay')
+const timerDiv = document.getElementById('timer')
 enterBtn.addEventListener('click', ()=>{
-  const name = nameInput.value.trim() || 'Jogador';
-  myName = name.slice(0,30);
-  popup.classList.remove('active');
-  popup.classList.add('hidden');
-  app.classList.remove('hidden');
-  youName.textContent = myName;
-  socket.emit('join', myName);
-});
+  const v = nameInput.value.trim()
+  if(!v) return
+  myName = v
+  socket.emit('setName', v)
+  popup.classList.add('hidden')
+  app.classList.remove('hidden')
+})
 startGameBtn.addEventListener('click', ()=>{
-  const a = teamAInput.value.trim();
-  const b = teamBInput.value.trim();
-  const pwd = passwordInput.value;
-  socket.emit('startGame', { teamA: a, teamB: b, password: pwd });
-  startScreen.classList.add('hidden');
-});
+  socket.emit('startGame',{team1:team1Input.value||'Equipe 1', team2:team2Input.value||'Equipe 2', password:startPassword.value})
+})
 startRoundBtn.addEventListener('click', ()=>{
-  const cat = categorySelect.value;
-  const playerId = playerSelect.value;
-  const team = teamSelect.value;
-  socket.emit('startRound', { category: cat, playerId, team });
-});
-resetBtn.addEventListener('click', ()=>{ socket.emit('adminReset'); });
-correctBtn.addEventListener('click', ()=>{ socket.emit('correct'); });
-skipBtn.addEventListener('click', ()=>{ socket.emit('skip'); });
-socket.on('connect', ()=>{ myId = socket.id; socket.emit('requestState'); });
-socket.on('categories', (cats)=>{
-  categorySelect.innerHTML = '';
-  cats.forEach(c=>{
-    const o = document.createElement('option'); o.value = c; o.textContent = c; categorySelect.appendChild(o);
-  });
-});
-socket.on('adminAssigned', ()=>{
-  amAdmin = true;
-  adminBadge.classList.remove('hidden');
-  adminPanel.classList.remove('hidden');
-});
-socket.on('state', (s)=>{
-  playersList.innerHTML = '';
-  playerSelect.innerHTML = '';
-  Object.values(s.players).forEach(p=>{
-    const li = document.createElement('li'); li.textContent = p.name + (p.isAdmin ? ' (admin)' : ''); playersList.appendChild(li);
-    const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; playerSelect.appendChild(opt);
-    if(p.id === myId) myName = p.name;
-  });
-  scoresDiv.innerHTML = '';
-  Object.keys(s.scores||{}).forEach(k=>{
-    const d = document.createElement('div'); d.className='scoreItem'; d.innerHTML = `<strong>${k}</strong><div class="small">${s.scores[k]||0} pts</div>`; scoresDiv.appendChild(d);
-  });
-  teamSelect.innerHTML = '';
-  const t1 = document.createElement('option'); t1.value = s.teamNames ? s.teamNames[0] : 'Equipe A'; t1.textContent = t1.value; teamSelect.appendChild(t1);
-  const t2 = document.createElement('option'); t2.value = s.teamNames ? s.teamNames[1] : 'Equipe B'; t2.textContent = t2.value; teamSelect.appendChild(t2);
-  acertadasList.innerHTML = '';
-  puladasList.innerHTML = '';
-  (s.acertadas||[]).forEach(a=>{ const li=document.createElement('li'); li.textContent = `${a.word} — ${a.player} (${a.team})`; acertadasList.appendChild(li); });
-  (s.puladas||[]).forEach(p=>{ const li=document.createElement('li'); li.textContent = `${p.word} — ${p.player} (${p.team})`; puladasList.appendChild(li); });
-  if(s.gameStarted){
-    startScreen.classList.add('hidden');
-    const startedAt = s.gameStartTime;
-    if(startedAt){
-      const ends = startedAt + 3600*1000;
-      const rem = Math.max(0, ends - Date.now());
-      updateGlobalTimer(rem);
-    }
-  }
-  if(s.currentRound && s.currentRound.roundActive){
-    roundPanel.classList.remove('hidden');
-    roundInfo.textContent = `Jogando: ${s.currentRound.playerName} — ${s.currentRound.category} — ${s.currentRound.team}`;
-    if(s.currentRound.playerId === myId){
-      wordArea.classList.remove('hidden');
-      remotePlaying.classList.add('hidden');
-    } else {
-      wordArea.classList.add('hidden');
-      remotePlaying.classList.remove('hidden');
-      whoPlaying.textContent = `${s.currentRound.playerName}`;
-    }
+  const playerId = playerSelect.value
+  const category = categorySelect.value
+  const team = teamSelect.value
+  if(!playerId || !category || !team) return
+  socket.emit('startRound',{playerId, category, team})
+})
+resetBtn.addEventListener('click', ()=>{ socket.emit('resetGame') })
+hitBtn.addEventListener('click', ()=>{ socket.emit('hit') })
+skipBtn.addEventListener('click', ()=>{ socket.emit('skip'); showSkipOverlay() })
+function showSkipOverlay(){ skipOverlay.classList.remove('hidden'); setTimeout(()=>skipOverlay.classList.add('hidden'),3000) }
+function renderPlayers(list){
+  playersList.innerHTML = ''
+  playerSelect.innerHTML = '<option value="">Selecione</option>'
+  list.forEach(p=>{
+    const li = document.createElement('li')
+    li.textContent = p.name
+    playersList.appendChild(li)
+    const opt = document.createElement('option')
+    opt.value = p.id
+    opt.textContent = p.name
+    playerSelect.appendChild(opt)
+  })
+}
+function renderCategories(){
+  categorySelect.innerHTML = ''
+  categories.forEach(c=>{
+    const opt = document.createElement('option')
+    opt.value = c.key
+    opt.textContent = c.label
+    categorySelect.appendChild(opt)
+  })
+}
+function renderTeams(ts){
+  teamSelect.innerHTML = ''
+  ts.forEach(t=>{
+    const opt = document.createElement('option')
+    opt.value = t
+    opt.textContent = t
+    teamSelect.appendChild(opt)
+  })
+}
+function renderScores(scores){
+  scoresDiv.innerHTML = ''
+  Object.keys(scores||{}).forEach(k=>{
+    const d = document.createElement('div')
+    d.className = 'scoreCard'
+    d.innerHTML = `<div>${k}</div><div style="font-weight:800;font-size:20px">${scores[k]}</div>`
+    scoresDiv.appendChild(d)
+  })
+}
+function renderHistory(h){
+  historyList.innerHTML = ''
+  (h||[]).slice().reverse().forEach(item=>{
+    const li = document.createElement('li')
+    const t = new Date(item.timestamp).toLocaleTimeString()
+    li.textContent = `${item.word} — ${item.result} • ${item.player} • ${item.team} • ${t}`
+    historyList.appendChild(li)
+  })
+}
+socket.on('connect', ()=>{ myId = socket.id })
+socket.on('players', list=> renderPlayers(list))
+socket.on('youAreAdmin', ()=>{ isAdmin = true; adminPanel.classList.remove('hidden'); notAdmin.classList.add('hidden') })
+socket.on('adminDisconnected', ()=>{ isAdmin = false; adminPanel.classList.add('hidden'); notAdmin.classList.remove('hidden') })
+socket.on('startFailed', ()=>{ alert('Senha incorreta') })
+socket.on('gameStarted', data=>{
+  initialScreen.classList.add('hidden')
+  gameArea.classList.remove('hidden')
+  renderTeams(data.teams)
+  renderScores({})
+})
+socket.on('state', s=>{
+  if(!s.gameStarted){ initialScreen.classList.remove('hidden'); gameArea.classList.add('hidden') } else { initialScreen.classList.add('hidden'); gameArea.classList.remove('hidden') }
+  renderScores(s.scores||{})
+  renderHistory(s.wordHistory||[])
+  renderPlayers(s.players||[])
+  if(s.teams && s.teams.length) renderTeams(s.teams)
+  updateTimer(s.startTime)
+})
+socket.on('roundStarted', data=>{
+  if(data.playerId === socket.id){
+    roundUI.classList.remove('hidden')
   } else {
-    roundPanel.classList.add('hidden');
+    roundUI.classList.add('hidden')
   }
-});
-socket.on('roundStarted', (info)=>{
-  roundPanel.classList.remove('hidden');
-  roundInfo.textContent = `Jogando: ${info.playerName} — ${info.category} — ${info.team}`;
-  if(info.playerId === myId){
-    wordArea.classList.remove('hidden');
-    remotePlaying.classList.add('hidden');
-  } else {
-    wordArea.classList.add('hidden');
-    remotePlaying.classList.remove('hidden');
-    whoPlaying.textContent = `${info.playerName}`;
-  }
-  if(info.endsAt){
-    const rem = Math.max(0, info.endsAt - Date.now());
-    updateRoundTimer(rem);
-  }
-});
-socket.on('newWord', ({word})=>{
-  currentWord.textContent = word || '—';
-  wordArea.classList.remove('hidden');
-  remotePlaying.classList.add('hidden');
-});
-socket.on('noWord', ()=>{
-  currentWord.textContent = 'Sem palavras restantes';
-});
-socket.on('updateLists', (d)=>{
-  acertadasList.innerHTML=''; puladasList.innerHTML='';
-  (d.acertadas||[]).forEach(a=>{ const li=document.createElement('li'); li.textContent = `${a.word} — ${a.player} (${a.team})`; acertadasList.appendChild(li); });
-  (d.puladas||[]).forEach(p=>{ const li=document.createElement('li'); li.textContent = `${p.word} — ${p.player} (${p.team})`; puladasList.appendChild(li); });
-  scoresDiv.innerHTML=''; Object.keys(d.scores||{}).forEach(k=>{ const dd=document.createElement('div'); dd.className='scoreItem'; dd.innerHTML = `<strong>${k}</strong><div class="small">${d.scores[k]||0} pts</div>`; scoresDiv.appendChild(dd); });
-});
-socket.on('skipping', (info)=>{
-  if(info.playerId === myId){
-    currentWord.textContent = 'pulando...';
-  } else {
-    whoPlaying.textContent = `${info.playerName} (pulando...)`;
-  }
-});
+})
+socket.on('roundWord', data=>{
+  if(data.word === null){ roundWord.textContent = 'Sem palavras disponíveis'; return }
+  roundWord.textContent = data.word
+})
 socket.on('roundEnded', ()=>{
-  roundPanel.classList.add('hidden');
-});
-socket.on('gameReset', ()=>{
-  location.reload();
-});
-function updateRoundTimer(sec){
-  clearInterval(window._roundTimer);
-  const el = timeLeft;
-  el.textContent = `Tempo restante do round: ${formatSec(sec)}`;
-  if(sec<=0) return;
-  let t = sec;
-  window._roundTimer = setInterval(()=>{
-    t--; if(t<0){ clearInterval(window._roundTimer); el.textContent=''; return; }
-    el.textContent = `Tempo restante do round: ${formatSec(t)}`;
-  },1000);
+  roundUI.classList.add('hidden')
+})
+socket.on('scoreUpdate', s=> renderScores(s))
+socket.on('wordHistory', h=> renderHistory(h))
+socket.on('skipStarted', ()=>{ /* visual handled locally */ })
+renderCategories()
+setInterval(()=>{ if(!document.hidden) socket.emit('requestState') },5000)
+function updateTimer(startTime){
+  if(!startTime){ timerDiv.textContent = '' ; return }
+  const end = startTime + 3600000
+  const rem = Math.max(0, end - Date.now())
+  const m = Math.floor(rem/60000)
+  const s = Math.floor((rem%60000)/1000)
+  timerDiv.textContent = `Tempo restante: ${m}m ${s}s`
 }
-function updateGlobalTimer(ms){
-  clearInterval(window._globalTimer);
-  const el = gameTimer;
-  let t = Math.floor(ms/1000);
-  if(t<=0){ el.textContent='00:00:00'; return;}
-  el.textContent = `Tempo de jogo: ${formatHMS(t)}`;
-  window._globalTimer = setInterval(()=>{
-    t--; if(t<0){ clearInterval(window._globalTimer); gameTimer.textContent=''; return;}
-    el.textContent = `Tempo de jogo: ${formatHMS(t)}`;
-  },1000);
-}
-function formatSec(s){ const mm = Math.floor(s/60); const ss = s%60; return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
-function formatHMS(s){ const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); const sec = s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+setInterval(()=>socket.emit('requestState'),1000)

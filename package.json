@@ -1,7 +1,7 @@
 {
-  "name": "real-time-game",
+  "name": "jogo-online-realtime",
   "version": "1.0.0",
-  "description": "Jogo em tempo real com Socket.IO",
+  "description": "Jogo para navegador com Node e Socket.io",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
