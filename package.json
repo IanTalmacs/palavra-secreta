@@ -1,7 +1,7 @@
 {
-  "name": "palavras",
+  "name": "socketio-game",
   "version": "1.0.0",
-  "description": "Jogo em tempo real com Node e Socket.IO",
+  "description": "Jogo em tempo real com Node e Socket.io",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

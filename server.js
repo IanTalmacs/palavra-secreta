@@ -7,146 +7,157 @@ const app = express()
 const server = http.createServer(app)
 const io = new Server(server)
 const PORT = process.env.PORT || 3000
-const WORDS = JSON.parse(fs.readFileSync(path.join(__dirname,'public','words.json'),'utf8'))
-let game = {
-  started: false,
-  createdAt: null,
-  expiresAt: null,
-  adminId: null,
-  teams: {teamA:{name:'Equipe A',score:0},teamB:{name:'Equipe B',score:0}},
-  players: {},
-  usedWords: new Set(),
-  guessedWords: [],
-  skippedWords: [],
-  currentRound: null,
-  expiryTimeout: null,
-  roundTimeout: null
+const WORDS_PATH = path.join(__dirname, 'public', 'words.json')
+function loadInitialWords() {
+  try {
+    const raw = fs.readFileSync(WORDS_PATH, 'utf8')
+    return JSON.parse(raw)
+  } catch (e) {
+    return {}
+  }
 }
-function resetGame(){
-  game.started = false
-  game.createdAt = null
-  game.expiresAt = null
-  game.adminId = null
-  game.teams = {teamA:{name:'Equipe A',score:0},teamB:{name:'Equipe B',score:0}}
-  game.players = {}
-  game.usedWords = new Set()
-  game.guessedWords = []
-  game.skippedWords = []
-  game.currentRound = null
-  if(game.expiryTimeout){ clearTimeout(game.expiryTimeout); game.expiryTimeout = null }
-  if(game.roundTimeout){ clearTimeout(game.roundTimeout); game.roundTimeout = null }
-}
-function pickWord(category){
-  const list = WORDS[category] || []
-  const available = list.filter(w=>!game.usedWords.has(`${category}||${w}`))
-  if(available.length===0) return null
-  const w = available[Math.floor(Math.random()*available.length)]
-  game.usedWords.add(`${category}||${w}`)
-  return w
-}
-app.use(express.static(path.join(__dirname,'public')))
-io.on('connection',(socket)=>{
-  socket.on('register',(name)=>{
-    game.players[socket.id] = {id:socket.id,name:name||'Anon'}
-    io.emit('players',Object.values(game.players))
-    socket.emit('gameState', {
-      started: game.started,
-      teams: game.teams,
-      guessedWords: game.guessedWords,
-      skippedWords: game.skippedWords,
-      admin: socket.id===game.adminId,
-      currentRound: game.currentRound,
-      expiresAt: game.expiresAt,
-      adminId: game.adminId
-    })
+let initialWords = loadInitialWords()
+let wordsPool = JSON.parse(JSON.stringify(initialWords))
+let teams = { a: { name: 'Equipe A', score: 0 }, b: { name: 'Equipe B', score: 0 } }
+let players = {}
+let drawnWordsLastRound = []
+let currentRound = { active: false, playerId: null, teamKey: null, category: null, timeout: null, skipTimeout: null, endAt: null }
+app.use(express.static(path.join(__dirname, 'public')))
+function broadcastState() {
+  const publicPlayers = Object.entries(players).map(([id, p]) => ({ id, name: p.name }))
+  io.emit('state', {
+    teams,
+    players: publicPlayers,
+    categories: Object.keys(initialWords).map(cat => ({ name: cat, remaining: (wordsPool[cat]||[]).length })),
+    drawnWordsLastRound,
+    currentRound: { active: currentRound.active, playerId: currentRound.playerId, teamKey: currentRound.teamKey, category: currentRound.category, endAt: currentRound.endAt }
   })
-  socket.on('startGame',(data)=>{
-    if(game.started) return
-    const {teamA,teamB,password} = data
-    if(password !== '12345678'){
-      socket.emit('startFailed','Senha incorreta')
+}
+function resetGame() {
+  wordsPool = JSON.parse(JSON.stringify(initialWords))
+  teams = { a: { name: 'Equipe A', score: 0 }, b: { name: 'Equipe B', score: 0 } }
+  drawnWordsLastRound = []
+  if (currentRound.timeout) clearTimeout(currentRound.timeout)
+  if (currentRound.skipTimeout) clearTimeout(currentRound.skipTimeout)
+  currentRound = { active: false, playerId: null, teamKey: null, category: null, timeout: null, skipTimeout: null, endAt: null }
+  broadcastState()
+}
+function drawWord(category) {
+  if (!wordsPool[category] || wordsPool[category].length === 0) return null
+  const idx = Math.floor(Math.random() * wordsPool[category].length)
+  const word = wordsPool[category].splice(idx, 1)[0]
+  drawnWordsLastRound.push(word)
+  io.emit('drawnWordsUpdate', drawnWordsLastRound.slice())
+  return word
+}
+io.on('connection', socket => {
+  players[socket.id] = { name: 'Jogador', isAdmin: false }
+  socket.emit('init', { id: socket.id })
+  broadcastState()
+  socket.on('setName', name => {
+    if (typeof name !== 'string') return
+    players[socket.id].name = name
+    if (name.trim().toLowerCase() === 'admin') players[socket.id].isAdmin = true
+    socket.emit('you', { id: socket.id, isAdmin: !!players[socket.id].isAdmin })
+    broadcastState()
+  })
+  socket.on('renameTeams', data => {
+    if (!players[socket.id].isAdmin) return
+    if (typeof data.a === 'string' && data.a.trim() !== '') teams.a.name = data.a
+    if (typeof data.b === 'string' && data.b.trim() !== '') teams.b.name = data.b
+    broadcastState()
+  })
+  socket.on('resetGame', () => {
+    if (!players[socket.id].isAdmin) return
+    resetGame()
+  })
+  socket.on('startRound', ({ playerId, category, teamKey }) => {
+    if (!players[socket.id].isAdmin) return
+    if (currentRound.active) return
+    if (!players[playerId]) return
+    if (!initialWords[category]) return
+    if (!['a','b'].includes(teamKey)) return
+    drawnWordsLastRound = []
+    io.emit('clearDrawnWords')
+    currentRound.active = true
+    currentRound.playerId = playerId
+    currentRound.teamKey = teamKey
+    currentRound.category = category
+    currentRound.endAt = Date.now() + 75000
+    broadcastState()
+    const firstWord = drawWord(category)
+    if (!firstWord) {
+      io.to(playerId).emit('roundEnd', { reason: 'no-words' })
+      currentRound.active = false
+      currentRound.playerId = null
+      currentRound.category = null
+      currentRound.teamKey = null
+      currentRound.endAt = null
+      broadcastState()
       return
     }
-    game.teams.teamA.name = teamA || 'Equipe A'
-    game.teams.teamB.name = teamB || 'Equipe B'
-    game.started = true
-    game.createdAt = Date.now()
-    game.expiresAt = Date.now() + 3600000
-    game.adminId = socket.id
-    game.expiryTimeout = setTimeout(()=>{
-      resetGame()
-      io.emit('resetAll')
-    },3600000)
-    io.emit('gameStarted',{teams:game.teams,adminId:game.adminId})
-    io.emit('players',Object.values(game.players))
+    io.to(playerId).emit('showRoundPopup', { word: firstWord, timeLeft: 75 })
+    currentRound.timeout = setTimeout(() => {
+      io.to(currentRound.playerId).emit('roundEnd', { reason: 'time-up' })
+      currentRound.active = false
+      currentRound.playerId = null
+      currentRound.category = null
+      currentRound.teamKey = null
+      currentRound.endAt = null
+      broadcastState()
+    }, 75000)
+    broadcastState()
   })
-  socket.on('startRound',(data)=>{
-    if(socket.id !== game.adminId) return
-    if(game.currentRound) return
-    const {playerId,category,teamKey} = data
-    if(!game.players[playerId]) return
-    const word = pickWord(category)
-    const endTime = Date.now()+75000
-    game.currentRound = {
-      playerId,
-      category,
-      teamKey,
-      currentWord: word,
-      endTime
-    }
-    io.to(playerId).emit('yourTurn',{word,category,endTime})
-    io.emit('roundInfo',{player:game.players[playerId],category,teamKey,endTime})
-    game.roundTimeout = setTimeout(()=>{ endRound() },75000)
-  })
-  socket.on('correct',()=>{
-    if(!game.currentRound) return
-    if(socket.id !== game.currentRound.playerId) return
-    const teamKey = game.currentRound.teamKey
-    if(game.teams[teamKey]) game.teams[teamKey].score += 1
-    if(game.currentRound.currentWord){
-      game.guessedWords.push({word:game.currentRound.currentWord,player:game.players[socket.id].name,team:game.teams[teamKey].name})
-    }
-    io.emit('updateScores',{teams:game.teams,guessed:game.guessedWords,skipped:game.skippedWords})
-    const next = pickWord(game.currentRound.category)
-    if(!next){
-      endRound()
+  socket.on('correct', () => {
+    if (!currentRound.active) return
+    if (socket.id !== currentRound.playerId) return
+    if (!currentRound.teamKey) return
+    teams[currentRound.teamKey].score += 1
+    const nextWord = drawWord(currentRound.category)
+    broadcastState()
+    if (!nextWord) {
+      io.to(socket.id).emit('roundEnd', { reason: 'no-words' })
+      if (currentRound.timeout) clearTimeout(currentRound.timeout)
+      currentRound.active = false
+      currentRound.playerId = null
+      currentRound.category = null
+      currentRound.teamKey = null
+      currentRound.endAt = null
+      broadcastState()
       return
     }
-    game.currentRound.currentWord = next
-    io.to(game.currentRound.playerId).emit('nextWord',{word:next})
+    io.to(socket.id).emit('roundWord', { word: nextWord })
   })
-  socket.on('skip',()=>{
-    if(!game.currentRound) return
-    if(socket.id !== game.currentRound.playerId) return
-    if(game.currentRound.currentWord){
-      game.skippedWords.push({word:game.currentRound.currentWord,player:game.players[socket.id].name,team:game.teams[game.currentRound.teamKey].name})
-    }
-    io.emit('updateScores',{teams:game.teams,guessed:game.guessedWords,skipped:game.skippedWords})
-    io.to(game.currentRound.playerId).emit('skipping')
-    setTimeout(()=>{
-      const next = pickWord(game.currentRound.category)
-      if(!next){
-        endRound()
+  socket.on('skip', () => {
+    if (!currentRound.active) return
+    if (socket.id !== currentRound.playerId) return
+    io.to(socket.id).emit('skipping')
+    if (currentRound.skipTimeout) clearTimeout(currentRound.skipTimeout)
+    currentRound.skipTimeout = setTimeout(() => {
+      const nextWord = drawWord(currentRound.category)
+      broadcastState()
+      if (!nextWord) {
+        io.to(socket.id).emit('roundEnd', { reason: 'no-words' })
+        if (currentRound.timeout) clearTimeout(currentRound.timeout)
+        currentRound.active = false
+        currentRound.playerId = null
+        currentRound.category = null
+        currentRound.teamKey = null
+        currentRound.endAt = null
+        broadcastState()
         return
       }
-      game.currentRound.currentWord = next
-      io.to(game.currentRound.playerId).emit('nextWord',{word:next})
-    },3000)
+      io.to(socket.id).emit('roundWord', { word: nextWord })
+    }, 3000)
   })
-  socket.on('resetGame',()=>{
-    if(socket.id !== game.adminId) return
-    resetGame()
-    io.emit('resetAll')
+  socket.on('disconnect', () => {
+    delete players[socket.id]
+    if (currentRound.playerId === socket.id) {
+      if (currentRound.timeout) clearTimeout(currentRound.timeout)
+      if (currentRound.skipTimeout) clearTimeout(currentRound.skipTimeout)
+      currentRound = { active: false, playerId: null, teamKey: null, category: null, timeout: null, skipTimeout: null, endAt: null }
+    }
+    broadcastState()
   })
-  socket.on('disconnect',()=>{
-    delete game.players[socket.id]
-    if(socket.id === game.adminId) game.adminId = null
-    io.emit('players',Object.values(game.players))
-  })
-  function endRound(){
-    if(game.roundTimeout){ clearTimeout(game.roundTimeout); game.roundTimeout = null }
-    game.currentRound = null
-    io.emit('roundEnded',{teams:game.teams,guessed:game.guessedWords,skipped:game.skippedWords})
-  }
 })
 server.listen(PORT)
