@@ -1,6 +1,7 @@
 {
-  "name": "jogo-realtime",
+  "name": "real-time-game",
   "version": "1.0.0",
+  "description": "Jogo em tempo real com Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

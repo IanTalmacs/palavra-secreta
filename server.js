@@ -1,205 +1,211 @@
-const express = require('express')
-const http = require('http')
-const { Server } = require('socket.io')
-const path = require('path')
-const fs = require('fs')
-const app = express()
-const server = http.createServer(app)
-const io = new Server(server)
-const WORDS_PATH = path.join(__dirname, 'public', 'words.json')
-let wordsByCategory = {}
-try {
-  wordsByCategory = JSON.parse(fs.readFileSync(WORDS_PATH, 'utf8'))
-} catch (e) {
-  wordsByCategory = {}
-}
-app.use(express.static(path.join(__dirname, 'public')))
-const PORT = process.env.PORT || 3000
-let players = {}
-let teams = []
-let selections = { category: null, playerId: null, teamId: null }
-let gamePhase = { namingVisible: true, superiorVisible: false, categoriasVisible: false }
-let usedWords = new Set()
-let roundState = { active: false, playerId: null, teamId: null, category: null, endTime: null, words: [] }
-let adminSocketId = null
-let lastActivity = Date.now()
-function publicPlayers() {
-  return Object.values(players).map(p => ({ id: p.id, name: p.name, teamId: p.teamId || null }))
-}
-function broadcastState() {
-  io.emit('state', {
-    players: publicPlayers(),
-    teams: teams.map(t => ({ id: t.id, name: t.name, score: t.score })),
-    selections: selections,
-    phase: gamePhase,
-    categories: Object.keys(wordsByCategory)
-  })
-}
-function resetGameAll() {
-  players = {}
-  teams = []
-  selections = { category: null, playerId: null, teamId: null }
-  gamePhase = { namingVisible: true, superiorVisible: false, categoriasVisible: false }
-  usedWords = new Set()
-  roundState = { active: false, playerId: null, teamId: null, category: null, endTime: null, words: [] }
-  adminSocketId = null
-  io.emit('reset')
-  broadcastState()
-}
-function pickWord(category) {
-  const list = wordsByCategory[category] || []
-  const available = list.filter(w => !usedWords.has(category + '||' + w))
-  if (available.length === 0) return null
-  const choice = available[Math.floor(Math.random() * available.length)]
-  usedWords.add(category + '||' + choice)
-  return choice
-}
-function startRoundFromSelections() {
-  if (!selections.category || !selections.playerId || !selections.teamId) return
-  roundState.active = true
-  roundState.playerId = selections.playerId
-  roundState.teamId = selections.teamId
-  roundState.category = selections.category
-  roundState.words = []
-  const now = Date.now()
-  roundState.endTime = now + 75000
-  const first = pickWord(roundState.category)
-  roundState.words.push({ word: first || '[SEM PALAVRAS]', status: 'current' })
-  gamePhase.categoriasVisible = false
-  gamePhase.superiorVisible = true
-  gamePhase.namingVisible = false
-  broadcastState()
-  io.emit('round_started', { playerId: roundState.playerId, teamId: roundState.teamId, category: roundState.category, endTime: roundState.endTime })
-  io.to(roundState.playerId).emit('round_word', { word: first || '[SEM PALAVRAS]', scores: teams.map(t => ({ id: t.id, score: t.score })) })
-  const timer = setTimeout(() => {
-    endRound()
-  }, 75000)
-  roundState._timer = timer
-}
-function endRound() {
-  if (!roundState.active) return
-  roundState.active = false
-  clearTimeout(roundState._timer)
-  roundState.words = roundState.words.map(w => {
-    if (w.status === 'current') return { word: w.word, status: 'acertou' }
-    return w
-  })
-  gamePhase.categoriasVisible = false
-  gamePhase.superiorVisible = true
-  io.emit('round_ended', { words: roundState.words.map(w => ({ word: w.word, status: w.status })), scores: teams.map(t => ({ id: t.id, score: t.score })) })
-  selections = { category: null, playerId: null, teamId: null }
-  broadcastState()
-}
-function touch() {
-  lastActivity = Date.now()
-}
-setInterval(() => {
-  if (Date.now() - lastActivity > 3600000) {
-    resetGameAll()
+// server.js
+const express = require('express');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { Server } = require('socket.io');
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+const WORDS_PATH = path.join(__dirname, 'public', 'words.json');
+let wordsData = {};
+function loadWords(){
+  try{
+    const raw = fs.readFileSync(WORDS_PATH, 'utf8');
+    wordsData = JSON.parse(raw);
+  }catch(e){
+    wordsData = {};
   }
-}, 60000)
-io.on('connection', socket => {
-  socket.onAny(() => touch())
-  socket.on('join', name => {
-    const isAdmin = typeof name === 'string' && name.toLowerCase().includes('admin')
-    players[socket.id] = { id: socket.id, name: name || ('Player-' + socket.id.slice(0,4)), teamId: null }
-    if (isAdmin && !adminSocketId) {
-      adminSocketId = socket.id
-      players[socket.id].isAdmin = true
-      socket.emit('you_are_admin')
+}
+loadWords();
+app.use(express.static(path.join(__dirname, 'public')));
+const PORT = process.env.PORT || 3000;
+let players = {};
+let teamNames = ['Equipe A','Equipe B'];
+let scores = { 'Equipe A':0, 'Equipe B':0 };
+let usedWords = new Set();
+let acertadas = [];
+let puladas = [];
+let gameStarted = false;
+let gameStartTime = null;
+let gameResetTimer = null;
+let currentRound = null;
+const ADMIN_PASSWORD = '12345678';
+function resetGame(){
+  players = {};
+  teamNames = ['Equipe A','Equipe B'];
+  scores = { 'Equipe A':0, 'Equipe B':0 };
+  usedWords = new Set();
+  acertadas = [];
+  puladas = [];
+  gameStarted = false;
+  gameStartTime = null;
+  currentRound = null;
+  if(gameResetTimer){ clearTimeout(gameResetTimer); gameResetTimer = null;}
+  loadWords();
+  io.emit('gameReset');
+  emitState();
+}
+function emitState(){
+  io.emit('state', {
+    players: Object.values(players).map(p=>({id:p.id,name:p.name,isAdmin:p.isAdmin})),
+    teamNames,
+    scores,
+    acertadas,
+    puladas,
+    gameStarted,
+    gameStartTime,
+    currentRound: currentRound ? {
+      playerId: currentRound.playerId,
+      playerName: players[currentRound.playerId]?.name || null,
+      category: currentRound.category,
+      team: currentRound.team,
+      roundActive: !!currentRound.active,
+      timeLeft: currentRound && currentRound.endsAt ? Math.max(0, Math.floor((currentRound.endsAt - Date.now())/1000)) : 0
+    } : null,
+    categories: Object.keys(wordsData)
+  });
+}
+function scheduleGameReset(){
+  if(gameResetTimer) clearTimeout(gameResetTimer);
+  gameResetTimer = setTimeout(()=> resetGame(), 3600*1000);
+}
+function pickWord(category){
+  const list = Array.isArray(wordsData[category]) ? wordsData[category] : [];
+  const available = list.filter(w => !usedWords.has(category + '||' + w));
+  if(available.length === 0) return null;
+  const idx = Math.floor(Math.random()*available.length);
+  const word = available[idx];
+  usedWords.add(category + '||' + word);
+  return word;
+}
+io.on('connection', socket=>{
+  socket.on('join', (name)=>{
+    players[socket.id] = { id: socket.id, name: (name||'Jogador').slice(0,30), isAdmin:false };
+    socket.emit('categories', Object.keys(wordsData));
+    emitState();
+  });
+  socket.on('startGame', ({teamA, teamB, password})=>{
+    teamNames[0] = teamA && teamA.trim() !== '' ? teamA.trim().slice(0,30) : 'Equipe A';
+    teamNames[1] = teamB && teamB.trim() !== '' ? teamB.trim().slice(0,30) : 'Equipe B';
+    scores = {};
+    scores[teamNames[0]] = 0;
+    scores[teamNames[1]] = 0;
+    acertadas = [];
+    puladas = [];
+    usedWords = new Set();
+    gameStarted = true;
+    gameStartTime = Date.now();
+    if(password === ADMIN_PASSWORD && players[socket.id]){
+      players[socket.id].isAdmin = true;
+      socket.emit('adminAssigned');
     }
-    broadcastState()
-  })
-  socket.on('admin_set_teams', data => {
-    if (socket.id !== adminSocketId) return
-    teams = [
-      { id: 'team1', name: data.team1 || 'Equipe 1', score: 0 },
-      { id: 'team2', name: data.team2 || 'Equipe 2', score: 0 }
-    ]
-    broadcastState()
-  })
-  socket.on('admin_start_game', () => {
-    if (socket.id !== adminSocketId) return
-    gamePhase.namingVisible = false
-    gamePhase.superiorVisible = true
-    gamePhase.categoriasVisible = true
-    broadcastState()
-  })
-  socket.on('admin_reset', () => {
-    if (socket.id !== adminSocketId) return
-    resetGameAll()
-  })
-  socket.on('select', ({ type, id }) => {
-    if (socket.id !== adminSocketId) return
-    if (type === 'category') selections.category = id
-    if (type === 'player') selections.playerId = id
-    if (type === 'team') selections.teamId = id
-    io.emit('selections', selections)
-  })
-  socket.on('admin_start_round', () => {
-    if (socket.id !== adminSocketId) return
-    if (!selections.category || !selections.playerId || !selections.teamId) return
-    startRoundFromSelections()
-  })
-  socket.on('hit', () => {
-    if (!roundState.active) return
-    if (socket.id !== roundState.playerId) return
-    const team = teams.find(t => t.id === roundState.teamId)
-    if (team) team.score += 1
-    const current = roundState.words.find(w => w.status === 'current')
-    if (current) {
-      current.status = 'acertou'
-    }
-    const next = pickWord(roundState.category)
-    if (next) {
-      roundState.words.push({ word: next, status: 'current' })
-      io.to(roundState.playerId).emit('round_word', { word: next, scores: teams.map(t => ({ id: t.id, score: t.score })) })
+    scheduleGameReset();
+    emitState();
+  });
+  socket.on('startRound', ({category, playerId, team})=>{
+    const p = Object.values(players).find(x=>x.id===socket.id && x.isAdmin);
+    if(!p) return;
+    if(!gameStarted) return;
+    if(!players[playerId]) return;
+    if(!wordsData[category]) return;
+    if(currentRound && currentRound.active) return;
+    currentRound = {
+      playerId,
+      category,
+      team,
+      active: true,
+      endsAt: Date.now() + 75000,
+      skipLock: false
+    };
+    const word = pickWord(category);
+    currentRound.currentWord = word;
+    io.emit('roundStarted', {
+      playerId,
+      playerName: players[playerId].name,
+      category,
+      team,
+      endsAt: currentRound.endsAt
+    });
+    if(word){
+      io.to(playerId).emit('newWord', { word });
     } else {
-      io.to(roundState.playerId).emit('round_word', { word: '[SEM PALAVRAS]', scores: teams.map(t => ({ id: t.id, score: t.score })) })
+      io.to(playerId).emit('noWord');
     }
-    broadcastState()
-  })
-  socket.on('skip', () => {
-    if (!roundState.active) return
-    if (socket.id !== roundState.playerId) return
-    const current = roundState.words.find(w => w.status === 'current')
-    if (current) {
-      current.status = 'pulou'
-    }
-    io.to(roundState.playerId).emit('skipping')
-    setTimeout(() => {
-      const next = pickWord(roundState.category)
-      if (next) {
-        roundState.words.push({ word: next, status: 'current' })
-        io.to(roundState.playerId).emit('round_word', { word: next, scores: teams.map(t => ({ id: t.id, score: t.score })) })
-      } else {
-        io.to(roundState.playerId).emit('round_word', { word: '[SEM PALAVRAS]', scores: teams.map(t => ({ id: t.id, score: t.score })) })
+    emitState();
+    setTimeout(()=>{
+      if(currentRound && currentRound.active){
+        currentRound.active = false;
+        io.emit('roundEnded', {});
+        currentRound = null;
+        emitState();
       }
-    }, 3000)
-  })
-  socket.on('admin_continue', () => {
-    if (socket.id !== adminSocketId) return
-    gamePhase.categoriasVisible = true
-    gamePhase.superiorVisible = true
-    selections = { category: null, playerId: null, teamId: null }
-    roundState.words = []
-    io.emit('hide_verification')
-    broadcastState()
-  })
-  socket.on('choose_team', teamId => {
-    if (players[socket.id]) {
-      players[socket.id].teamId = teamId
-      broadcastState()
+    }, 75000);
+  });
+  socket.on('correct', ()=>{
+    if(!currentRound || !currentRound.active) return;
+    if(socket.id !== currentRound.playerId) return;
+    if(!currentRound.currentWord) return;
+    const entry = { word: currentRound.currentWord, player: players[socket.id]?.name || 'Jogador', team: currentRound.team, ts: Date.now(), type: 'acertou' };
+    acertadas.push(entry);
+    scores[currentRound.team] = (scores[currentRound.team]||0) + 1;
+    const next = pickWord(currentRound.category);
+    currentRound.currentWord = next;
+    io.emit('updateLists', { acertadas, puladas, scores });
+    if(next){
+      io.to(currentRound.playerId).emit('newWord', { word: next });
+    } else {
+      io.to(currentRound.playerId).emit('noWord');
     }
-  })
-  socket.on('disconnect', () => {
-    if (players[socket.id] && players[socket.id].isAdmin) {
-      adminSocketId = null
+    emitState();
+  });
+  socket.on('skip', ()=>{
+    if(!currentRound || !currentRound.active) return;
+    if(socket.id !== currentRound.playerId) return;
+    if(currentRound.skipLock) return;
+    currentRound.skipLock = true;
+    const entry = { word: currentRound.currentWord || '', player: players[socket.id]?.name || 'Jogador', team: currentRound.team, ts: Date.now(), type: 'pulou' };
+    puladas.push(entry);
+    io.emit('skipping', { playerId: socket.id, playerName: players[socket.id]?.name });
+    io.emit('updateLists', { acertadas, puladas, scores });
+    setTimeout(()=>{
+      const next = pickWord(currentRound.category);
+      currentRound.currentWord = next;
+      currentRound.skipLock = false;
+      if(next){
+        io.to(currentRound.playerId).emit('newWord', { word: next });
+      } else {
+        io.to(currentRound.playerId).emit('noWord');
+      }
+      emitState();
+    }, 3000);
+  });
+  socket.on('adminReset', ()=>{
+    const p = players[socket.id];
+    if(!p || !p.isAdmin) return;
+    resetGame();
+  });
+  socket.on('requestState', ()=>{
+    socket.emit('categories', Object.keys(wordsData));
+    emitState();
+  });
+  socket.on('disconnect', ()=>{
+    if(players[socket.id]){
+      const wasAdmin = players[socket.id].isAdmin;
+      delete players[socket.id];
+      if(wasAdmin){
+        const remaining = Object.values(players);
+        if(remaining.length>0){
+          remaining[0].isAdmin = true;
+          io.to(remaining[0].id).emit('adminAssigned');
+        }
+      }
+      if(currentRound && currentRound.playerId === socket.id){
+        currentRound = null;
+        io.emit('roundEnded', {});
+      }
+      emitState();
     }
-    delete players[socket.id]
-    broadcastState()
-  })
-  socket.emit('connected', { id: socket.id })
-  broadcastState()
-})
-server.listen(PORT)
+  });
+});
+server.listen(PORT);
