@@ -1,82 +1,89 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jogo Realtime</title>
+<title>Jogo</title>
 <link rel="stylesheet" href="style.css" />
+<script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<div id="popup" class="overlay">
-  <div class="box">
-    <h2>Digite seu nome</h2>
-    <input id="nameInput" placeholder="Seu nome" />
-    <button id="enterBtn">Entrar</button>
-  </div>
+<div class="app">
+<header class="topbar">
+<div class="logo">SPOTPLAY</div>
+<div id="timer" class="expire"></div>
+</header>
+<main>
+<div id="nameScreen" class="modal visible">
+<h2>Seu nome</h2>
+<input id="playerName" placeholder="Digite seu nome" />
+<button id="btnEnter">Entrar</button>
 </div>
-<div id="app" class="container hidden">
-  <header class="topbar">
-    <div class="title">Jogo Realtime</div>
-    <div id="timer" class="timer"></div>
-  </header>
-  <main class="main">
-    <section id="initialScreen" class="card">
-      <h3>Tela Inicial</h3>
-      <div class="field"><input id="team1" placeholder="Nome da Equipe 1" /></div>
-      <div class="field"><input id="team2" placeholder="Nome da Equipe 2" /></div>
-      <div class="field"><input id="startPassword" placeholder="Senha para iniciar" type="password" /></div>
-      <div class="actions"><button id="startGameBtn">Iniciar Jogo</button></div>
-    </section>
-    <section id="gameArea" class="card hidden">
-      <div class="row">
-        <div class="col left">
-          <div class="card small">
-            <h4>Jogadores</h4>
-            <ul id="playersList" class="list"></ul>
-          </div>
-          <div class="card small">
-            <h4>Painel</h4>
-            <div id="adminPanel" class="adminPanel hidden">
-              <label>Categoria</label>
-              <select id="categorySelect"></select>
-              <label>Jogador</label>
-              <select id="playerSelect"></select>
-              <label>Equipe</label>
-              <select id="teamSelect"></select>
-              <div class="actions">
-                <button id="startRoundBtn">Iniciar Round</button>
-                <button id="resetBtn" class="danger">Reset</button>
-              </div>
-            </div>
-            <div id="notAdmin" class="notAdmin">Aguardando admin...</div>
-          </div>
-        </div>
-        <div class="col right">
-          <div class="card">
-            <h4>Placar</h4>
-            <div id="scores" class="scores"></div>
-          </div>
-          <div class="card">
-            <h4>Histórico de Palavras</h4>
-            <ul id="history" class="history"></ul>
-          </div>
-        </div>
-      </div>
-    </section>
-    <section id="roundUI" class="roundUI hidden">
-      <div class="roundCard">
-        <div id="roundWord" class="word">—</div>
-        <div id="skipOverlay" class="skipOverlay hidden">pulando...</div>
-        <div class="roundButtons">
-          <button id="hitBtn" class="circle green">ACERTOU</button>
-          <button id="skipBtn" class="circle red">PULAR</button>
-        </div>
-      </div>
-    </section>
-  </main>
-  <footer class="footer">Feito para deploy</footer>
+<section id="initialScreen" class="card">
+<div class="card-content">
+<h3>Configurar equipes</h3>
+<input id="teamA" placeholder="Nome equipe 1" />
+<input id="teamB" placeholder="Nome equipe 2" />
+<input id="startPassword" placeholder="Senha para iniciar (opcional)" />
+<button id="btnStart">Iniciar jogo</button>
 </div>
-<script src="/socket.io/socket.io.js"></script>
+</section>
+<section id="lobby" class="card hidden">
+<div class="lobby-top">
+<div class="teams">
+<div class="team" id="teamABox">
+<div class="team-name" id="teamAName"></div>
+<div class="team-score" id="teamAScore">0</div>
+</div>
+<div class="team" id="teamBBox">
+<div class="team-name" id="teamBName"></div>
+<div class="team-score" id="teamBScore">0</div>
+</div>
+</div>
+<div class="players" id="playersList"></div>
+</div>
+<div class="feed">
+<div class="feed-col">
+<h4>Acertadas</h4>
+<ul id="guessedList"></ul>
+</div>
+<div class="feed-col">
+<h4>Puladas</h4>
+<ul id="skippedList"></ul>
+</div>
+</div>
+</section>
+<section id="adminPanel" class="card hidden">
+<div class="card-content">
+<h3>Painel Admin</h3>
+<select id="selectPlayer"></select>
+<select id="selectCategory"></select>
+<select id="selectTeam">
+<option value="teamA">Equipe 1</option>
+<option value="teamB">Equipe 2</option>
+</select>
+<button id="btnStartRound">Iniciar Round</button>
+<button id="btnReset" class="danger">Reset</button>
+</div>
+</section>
+<section id="roundArea" class="card hidden">
+<div class="round-info" id="roundInfo"></div>
+<div id="playerTurnUI" class="turn-ui hidden">
+<div class="wordCard" id="wordCard">WORD</div>
+<div class="controls">
+<button id="btnCorrect" class="circle green">acertou</button>
+<button id="btnSkip" class="circle red">pular</button>
+</div>
+<div id="skipLabel" class="skip">pulando...</div>
+<div id="countdown" class="countdown"></div>
+</div>
+<div id="spectatorUI" class="spectator hidden">
+<div id="spectatorText"></div>
+<div id="spectatorCountdown" class="countdown"></div>
+</div>
+</section>
+</main>
+</div>
 <script src="client.js"></script>
 </body>
 </html>
