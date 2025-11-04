@@ -78,8 +78,9 @@ socket.on('players',(players)=>{
     selectPlayer.appendChild(o)
   })
 })
+socket.on('startFailed',(msg)=>{ alert(msg || 'Falha ao iniciar o jogo') })
 socket.on('gameState',(state)=>{
-  isAdmin = state.admin
+  isAdmin = state.adminId === socket.id
   if(state.started) {
     hide(initialScreen)
     show(lobby)
@@ -100,10 +101,9 @@ socket.on('gameStarted',(data)=>{
   hide(initialScreen)
   show(lobby)
   show(roundArea)
-  if(socket.id === data.adminAssigned && !isAdmin){
-    isAdmin = socket.id === data.adminAssigned
-  }
+  isAdmin = data.adminId === socket.id
   if(isAdmin) show(adminPanel)
+  else hide(adminPanel)
   updateScores(data.teams)
 })
 socket.on('updateScores',(data)=>{

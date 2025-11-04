@@ -56,23 +56,28 @@ io.on('connection',(socket)=>{
       skippedWords: game.skippedWords,
       admin: socket.id===game.adminId,
       currentRound: game.currentRound,
-      expiresAt: game.expiresAt
+      expiresAt: game.expiresAt,
+      adminId: game.adminId
     })
   })
   socket.on('startGame',(data)=>{
     if(game.started) return
     const {teamA,teamB,password} = data
+    if(password !== '12345678'){
+      socket.emit('startFailed','Senha incorreta')
+      return
+    }
     game.teams.teamA.name = teamA || 'Equipe A'
     game.teams.teamB.name = teamB || 'Equipe B'
     game.started = true
     game.createdAt = Date.now()
     game.expiresAt = Date.now() + 3600000
-    if(password === '12345678') game.adminId = socket.id
+    game.adminId = socket.id
     game.expiryTimeout = setTimeout(()=>{
       resetGame()
       io.emit('resetAll')
     },3600000)
-    io.emit('gameStarted',{teams:game.teams,adminAssigned: game.adminId!==null})
+    io.emit('gameStarted',{teams:game.teams,adminId:game.adminId})
     io.emit('players',Object.values(game.players))
   })
   socket.on('startRound',(data)=>{
