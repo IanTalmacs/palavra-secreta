@@ -1,22 +1,25 @@
+<!-- public/index.html -->
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jogo Real-time</title>
+<title>Jogo</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div id="app">
-  <header class="topbar">
-    <div class="logo">PLAY</div>
-    <div class="controls">
-      <button id="renameBtn" class="btn" disabled>renomear equipes</button>
-      <button id="resetBtn" class="btn" disabled>resetar jogo</button>
-    </div>
-  </header>
-  <main class="main">
-    <section class="scoreboard">
+  <button id="resetAll" aria-label="Reset">R</button>
+  <div id="initial" class="card center">
+    <h1>Iniciar Jogo</h1>
+    <input id="team1" placeholder="Nome equipe 1" maxlength="20" />
+    <input id="team2" placeholder="Nome equipe 2" maxlength="20" />
+    <input id="password" placeholder="Senha" type="password" maxlength="20" />
+    <button id="startBtn">Iniciar jogo</button>
+    <div id="startMsg" class="msg"></div>
+  </div>
+  <div id="main" class="hidden">
+    <header class="scoreboard">
       <div class="team" id="teamA">
         <div class="team-name" id="teamAName">Equipe A</div>
         <div class="team-score" id="teamAScore">0</div>
@@ -25,55 +28,29 @@
         <div class="team-name" id="teamBName">Equipe B</div>
         <div class="team-score" id="teamBScore">0</div>
       </div>
-    </section>
-    <section class="selectors">
-      <label>categoria
-        <select id="categorySelect"></select>
-      </label>
-      <label>player
-        <select id="playerSelect"></select>
-      </label>
-      <label>equipe
-        <select id="teamSelect">
-          <option value="a">Equipe A</option>
-          <option value="b">Equipe B</option>
-        </select>
-      </label>
-      <button id="startRoundBtn" class="start-btn" disabled>iniciar round</button>
-    </section>
-    <section class="drawn">
-      <h3>palavras sorteadas</h3>
-      <ul id="drawnList"></ul>
-    </section>
-  </main>
-</div>
-<div id="namePopup" class="overlay">
-  <div class="modal">
-    <h2>Informe seu nome</h2>
-    <input id="nameInput" placeholder="nome" />
-    <button id="confirmNameBtn" class="btn-primary">confirmar nome</button>
+    </header>
+    <main class="controls">
+      <label>Categorias</label>
+      <select id="categorySelect"></select>
+      <label>Escolher equipe</label>
+      <select id="teamSelect">
+        <option value="a">Equipe A</option>
+        <option value="b">Equipe B</option>
+      </select>
+      <button id="startRoundBtn" class="primary">Iniciar round</button>
+      <div id="remaining" class="small"></div>
+    </main>
   </div>
-</div>
-<div id="renamePopup" class="overlay hidden">
-  <div class="modal">
-    <h2>Renomear equipes</h2>
-    <input id="renameA" placeholder="Nome equipe A" />
-    <input id="renameB" placeholder="Nome equipe B" />
-    <div class="row">
-      <button id="applyRename" class="btn-primary">Aplicar</button>
-      <button id="cancelRename" class="btn">Cancelar</button>
+  <div id="roundOverlay" class="overlay hidden">
+    <div class="roundCard">
+      <div id="timeLeft" class="timer">75</div>
+      <div id="wordBox" class="word">...</div>
+      <div id="skipText" class="skipText"></div>
+      <div class="roundButtons">
+        <button id="correctBtn" class="circle green">acertou</button>
+        <button id="skipBtn" class="circle red">pular</button>
+      </div>
     </div>
-  </div>
-</div>
-<div id="roundPopup" class="overlay hidden">
-  <div class="round-modal">
-    <div id="roundWord" class="round-word"></div>
-    <div id="roundTimer" class="round-timer"></div>
-    <div class="round-actions">
-      <button id="correctBtn" class="circle green">acertou</button>
-      <button id="skipBtn" class="circle red">pular</button>
-    </div>
-    <div id="skipStatus" class="skip-status"></div>
   </div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
