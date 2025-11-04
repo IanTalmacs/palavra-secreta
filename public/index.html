@@ -1,74 +1,59 @@
-<!-- public/index.html -->
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jogo</title>
+<title>Jogo Realtime</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div id="app">
-  <div id="initial" class="screen">
-    <div class="card">
-      <h1>Entrar</h1>
-      <input id="name" placeholder="Nome" autocomplete="off" />
-      <div id="adminTeams" class="hidden">
-        <input id="team1" placeholder="Time 1" autocomplete="off" />
-        <input id="team2" placeholder="Time 2" autocomplete="off" />
+  <header class="topbar">
+    <div id="teams" class="teams"></div>
+    <div id="controls" class="controls"></div>
+  </header>
+  <main>
+    <section id="naming" class="panel">
+      <h2>Nome</h2>
+      <input id="nameInput" placeholder="Digite seu nome" />
+      <div id="adminTeams" class="adminTeams hidden">
+        <input id="team1Input" placeholder="Nome equipe 1" />
+        <input id="team2Input" placeholder="Nome equipe 2" />
       </div>
-      <button id="enter">Entrar</button>
-    </div>
-  </div>
-  <div id="game" class="screen hidden">
-    <header id="superior" class="topbar">
-      <div class="scores">
-        <div id="teamA" class="teamscore">
-          <div class="teamname"></div>
-          <div class="score">0</div>
-        </div>
-        <div id="teamB" class="teamscore">
-          <div class="teamname"></div>
-          <div class="score">0</div>
-        </div>
+      <div class="row">
+        <button id="joinBtn">Entrar</button>
+        <button id="startBtn" class="hidden">Iniciar</button>
       </div>
-      <div class="controls">
-        <button id="resetBtn" class="btn hidden">Reset</button>
+    </section>
+    <section id="categorias" class="panel hidden">
+      <h2>Categorias</h2>
+      <div id="categoryButtons" class="grid"></div>
+      <h3>Jogadores</h3>
+      <div id="playerButtons" class="list"></div>
+      <h3>Equipes</h3>
+      <div id="teamButtons" class="list"></div>
+      <div class="row">
+        <button id="startRoundBtn" class="hidden">Começar Round</button>
       </div>
-    </header>
-    <main class="maincontent">
-      <section id="categorias" class="panel">
-        <div class="cat-grid" id="categoryButtons"></div>
-        <div class="subsection">
-          <h3>Jogadores</h3>
-          <div id="playerButtons" class="list"></div>
-        </div>
-        <div class="subsection">
-          <h3>Times</h3>
-          <div id="teamButtons" class="list"></div>
-        </div>
-        <div id="startRoundWrapper" class="center hidden">
-          <button id="startRound" class="bigbtn">Começar Round</button>
-        </div>
-      </section>
-      <section id="round" class="panel hidden">
-        <div id="roundContent" class="roundcard">
-          <div id="timer" class="timer">75</div>
-          <div id="word" class="bigword">palavra</div>
-          <div class="round-actions">
-            <button id="correct" class="circle green">Acertou</button>
-            <button id="skip" class="circle red">Pular</button>
-          </div>
-        </div>
-      </section>
-      <section id="verificacao" class="panel hidden">
-        <div id="results" class="results"></div>
-        <div id="continueWrapper" class="center hidden">
-          <button id="continueBtn" class="bigbtn">Continuar</button>
-        </div>
-      </section>
-    </main>
-  </div>
+    </section>
+    <section id="round" class="panel hidden">
+      <div id="countdown" class="countdown">75</div>
+      <div id="wordDisplay" class="word">--- </div>
+      <div class="roundButtons">
+        <button id="correctBtn" class="circle green">ACERTOU</button>
+        <button id="skipBtn" class="circle red">PULAR</button>
+      </div>
+      <div id="skipText" class="skipText hidden">pulando...</div>
+    </section>
+    <section id="verification" class="panel hidden">
+      <h2>Verificação</h2>
+      <div id="correctList"></div>
+      <div id="skipList"></div>
+      <div class="row">
+        <button id="continueBtn" class="hidden">Continuar</button>
+      </div>
+    </section>
+  </main>
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="client.js"></script>

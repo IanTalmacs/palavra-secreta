@@ -1,5 +1,5 @@
 {
-  "name": "spotify-inspired-game",
+  "name": "jogo-realtime",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {

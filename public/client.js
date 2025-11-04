@@ -1,209 +1,194 @@
-/* public/client.js */
 const socket = io()
-let clientId = null
-let isAdmin = false
-let teams = ['', '']
-const initial = document.getElementById('initial')
-const game = document.getElementById('game')
-const nameInput = document.getElementById('name')
-const enterBtn = document.getElementById('enter')
-const adminTeams = document.getElementById('adminTeams')
-const team1Input = document.getElementById('team1')
-const team2Input = document.getElementById('team2')
-const resetBtn = document.getElementById('resetBtn')
-const categoryButtons = document.getElementById('categoryButtons')
-const playerButtons = document.getElementById('playerButtons')
-const teamButtons = document.getElementById('teamButtons')
-const startRoundWrapper = document.getElementById('startRoundWrapper')
-const startRoundBtn = document.getElementById('startRound')
-const categoriasSection = document.getElementById('categorias')
-const roundSection = document.getElementById('round')
-const verificationSection = document.getElementById('verificacao')
-const timerEl = document.getElementById('timer')
-const wordEl = document.getElementById('word')
-const correctBtn = document.getElementById('correct')
-const skipBtn = document.getElementById('skip')
-const resultsEl = document.getElementById('results')
-const continueWrapper = document.getElementById('continueWrapper')
-const continueBtn = document.getElementById('continueBtn')
-const teamAEl = document.querySelector('#teamA .teamname')
-const teamBEl = document.querySelector('#teamB .teamname')
-const teamAScoreEl = document.querySelector('#teamA .score')
-const teamBScoreEl = document.querySelector('#teamB .score')
-let currentRoundPlayer = null
-let currentRemaining = 75
-let localSelection = { category: null, playerId: null, teamIndex: null }
-function showInitial(){ initial.classList.remove('hidden'); game.classList.add('hidden') }
-function showGame(){ initial.classList.add('hidden'); game.classList.remove('hidden') }
-nameInput.addEventListener('input', ()=> {
-  const v = nameInput.value.toLowerCase()
-  if (v.includes('admin')) adminTeams.classList.remove('hidden') 
-  else adminTeams.classList.add('hidden')
+let myId = null
+let amAdmin = false
+let state = {}
+const el = id => document.getElementById(id)
+el('joinBtn').addEventListener('click', () => {
+  const name = el('nameInput').value.trim() || 'Jogador'
+  socket.emit('join', name)
 })
-enterBtn.addEventListener('click', ()=> {
-  const name = nameInput.value.trim()
-  if (!name) return
-  if (name.toLowerCase().includes('admin')) {
-    const t1 = team1Input.value.trim() || 'Time A'
-    const t2 = team2Input.value.trim() || 'Time B'
-    socket.emit('join', { name, teams: [t1, t2] })
-  } else {
-    socket.emit('join', { name })
-  }
-  showGame()
+el('startBtn').addEventListener('click', () => {
+  const t1 = el('team1Input').value.trim() || 'Equipe 1'
+  const t2 = el('team2Input').value.trim() || 'Equipe 2'
+  socket.emit('admin_set_teams', { team1: t1, team2: t2 })
+  socket.emit('admin_start_game')
 })
-resetBtn.addEventListener('click', ()=> socket.emit('reset'))
-startRoundBtn.addEventListener('click', ()=> socket.emit('startRound'))
-correctBtn.addEventListener('click', ()=> socket.emit('correct'))
-skipBtn.addEventListener('click', ()=> socket.emit('skip'))
-continueBtn.addEventListener('click', ()=> socket.emit('continue'))
-socket.on('joined', data => {
-  clientId = data.id
-  isAdmin = data.isAdmin
-  teams = data.teams || teams
-  if (isAdmin) resetBtn.classList.remove('hidden')
-  else resetBtn.classList.add('hidden')
-  renderTeams()
+el('adminTeams').addEventListener('keydown', e => { if (e.key === 'Enter') el('startBtn').click() })
+el('startRoundBtn').addEventListener('click', () => socket.emit('admin_start_round'))
+el('correctBtn').addEventListener('click', () => socket.emit('hit'))
+el('skipBtn').addEventListener('click', () => socket.emit('skip'))
+el('continueBtn').addEventListener('click', () => socket.emit('admin_continue'))
+window.addEventListener('beforeunload', e => { e.preventDefault(); e.returnValue = '' })
+socket.on('connected', d => { myId = d.id })
+socket.on('you_are_admin', () => {
+  amAdmin = true
+  el('adminTeams').classList.remove('hidden')
+  el('startBtn').classList.remove('hidden')
 })
 socket.on('state', s => {
-  renderPlayers(s.players || [])
-  teams = s.teams || teams
-  renderTeams()
-  updateScores(s.scores || { '0':0,'1':0 })
-  if (s.phase === 'init') {
-    categoriasSection.classList.add('hidden')
-    roundSection.classList.add('hidden')
-    verificationSection.classList.add('hidden')
-  } else if (s.phase === 'categories') {
-    categoriasSection.classList.remove('hidden')
-    roundSection.classList.add('hidden')
-    verificationSection.classList.add('hidden')
+  state = s
+  renderState()
+})
+socket.on('reset', () => {
+  amAdmin = false
+  myId = null
+  state = {}
+  el('naming').classList.remove('hidden')
+  el('categorias').classList.add('hidden')
+  el('round').classList.add('hidden')
+  el('verification').classList.add('hidden')
+})
+socket.on('selections', sel => {
+  state.selections = sel
+  renderSelections()
+})
+socket.on('round_started', data => {
+  const isPlayer = data.playerId === myId
+  el('categorias').classList.add('hidden')
+  if (isPlayer) {
+    el('round').classList.remove('hidden')
+  } else {
+    el('round').classList.add('hidden')
   }
+  startCountdown(data.endTime)
 })
-socket.on('selectionUpdate', sel => {
-  localSelection = { category: sel.category, playerId: sel.playerId, teamIndex: sel.teamIndex }
-  updateSelections()
-  if (localSelection.category && localSelection.playerId && typeof localSelection.teamIndex === 'number') {
-    startRoundWrapper.classList.remove('hidden')
-  } else startRoundWrapper.classList.add('hidden')
+socket.on('round_word', data => {
+  el('skipText').classList.add('hidden')
+  el('wordDisplay').textContent = data.word || '[SEM PALAVRAS]'
+  renderTeams(data.scores)
 })
-socket.on('hideCategorias', ()=> {
-  categoriasSection.classList.add('hidden')
+socket.on('skipping', () => {
+  el('skipText').classList.remove('hidden')
 })
-socket.on('showCategorias', ()=> {
-  categoriasSection.classList.remove('hidden')
+socket.on('round_ended', data => {
+  el('round').classList.add('hidden')
+  el('verification').classList.remove('hidden')
+  renderVerification(data.words, data.scores)
 })
-socket.on('startRound', data => {
-  currentRoundPlayer = clientId
-  roundSection.classList.remove('hidden')
-  categoriasSection.classList.add('hidden')
-  verificationSection.classList.add('hidden')
-  wordEl.textContent = data.word || ''
-  timerEl.textContent = data.remaining || '75'
-  currentRemaining = data.remaining || 75
+socket.on('hide_verification', () => {
+  el('verification').classList.add('hidden')
 })
-socket.on('tick', d => {
-  timerEl.textContent = d.remaining
-})
-socket.on('newWord', d => {
-  wordEl.textContent = d.word
-})
-socket.on('skipping', ()=> {
-  wordEl.textContent = 'pulando...'
-})
-socket.on('roundEnd', d => {
-  roundSection.classList.add('hidden')
-  verificationSection.classList.remove('hidden')
-  resultsEl.innerHTML = ''
-  d.results.forEach(r => {
-    const div = document.createElement('div')
-    div.className = 'result ' + (r.status === 'skipped' ? 'skipped' : 'correct')
-    div.textContent = r.word + ' — ' + (r.status === 'skipped' ? 'Pulada' : 'Acertada')
-    resultsEl.appendChild(div)
-  })
-  updateScores(d.points || { '0':0,'1':0 })
-  if (isAdmin) continueWrapper.classList.remove('hidden')
-  else continueWrapper.classList.add('hidden')
-})
-socket.on('scoreUpdate', d => updateScores(d.scores || { '0':0,'1':0 }))
-socket.on('resetAll', ()=> {
-  location.reload()
-})
-socket.on('noWords', d => {
-  alert('Sem palavras restantes na categoria: ' + d.category)
-})
-function updateScores(s){ teamAScoreEl.textContent = s['0'] || 0; teamBScoreEl.textContent = s['1'] || 0 }
-function renderTeams(){
-  teamAEl.textContent = teams[0] || 'Time A'
-  teamBEl.textContent = teams[1] || 'Time B'
-  teamButtons.innerHTML = ''
-  const b1 = document.createElement('button')
-  b1.className = 'team-btn'
-  b1.textContent = teams[0] || 'Time A'
-  b1.addEventListener('click', ()=> {
-    if (!isAdmin) return
-    socket.emit('select', { type: 'team', value: 0 })
-  })
-  const b2 = document.createElement('button')
-  b2.className = 'team-btn'
-  b2.textContent = teams[1] || 'Time B'
-  b2.addEventListener('click', ()=> {
-    if (!isAdmin) return
-    socket.emit('select', { type: 'team', value: 1 })
-  })
-  teamButtons.appendChild(b1); teamButtons.appendChild(b2)
+function renderState() {
+  renderTeamsUI(state.teams || [])
+  renderPlayerButtons(state.players || [])
+  renderCategoryButtons(state.categories || [])
+  if (state.phase) {
+    if (state.phase.namingVisible) {
+      el('naming').classList.remove('hidden')
+    } else {
+      el('naming').classList.add('hidden')
+    }
+    if (state.phase.categoriasVisible) {
+      el('categorias').classList.remove('hidden')
+    } else {
+      el('categorias').classList.add('hidden')
+    }
+    if (state.phase.superiorVisible) {
+      // nothing extra
+    }
+  }
+  renderSelections()
 }
-function renderPlayers(players){
-  playerButtons.innerHTML = ''
+function renderTeamsUI(teams) {
+  const container = el('teams')
+  container.innerHTML = ''
+  teams.forEach(t => {
+    const d = document.createElement('div')
+    d.className = 'teamCard'
+    d.innerHTML = `<div style="font-size:12px;color:var(--muted)">${t.name}</div><div style="font-size:18px;font-weight:800">${t.score}</div>`
+    container.appendChild(d)
+  })
+  const ctrl = el('controls')
+  ctrl.innerHTML = ''
+  if (amAdmin) {
+    const resetBtn = document.createElement('button')
+    resetBtn.textContent = 'Reset'
+    resetBtn.addEventListener('click', () => socket.emit('admin_reset'))
+    ctrl.appendChild(resetBtn)
+  }
+}
+function renderPlayerButtons(players) {
+  const pcont = el('playerButtons')
+  pcont.innerHTML = ''
   players.forEach(p => {
-    const btn = document.createElement('button')
-    btn.className = 'player-btn'
-    btn.textContent = p.name
-    btn.addEventListener('click', ()=> {
-      if (!isAdmin) return
-      socket.emit('select', { type: 'player', value: p.id })
+    const b = document.createElement('button')
+    b.textContent = p.name
+    b.dataset.id = p.id
+    b.addEventListener('click', () => {
+      if (!amAdmin) return
+      socket.emit('select', { type: 'player', id: p.id })
     })
-    playerButtons.appendChild(btn)
+    pcont.appendChild(b)
   })
 }
-const categories = ['animais','tv e cinema','objetos','lugares','pessoas','esportes e jogos','profissoes','alimentos','personagens','biblico']
-function initCategories(){
-  categoryButtons.innerHTML = ''
+function renderCategoryButtons(categories) {
+  const ccont = el('categoryButtons')
+  ccont.innerHTML = ''
   categories.forEach(c => {
     const b = document.createElement('button')
-    b.className = 'cat-btn'
     b.textContent = c
-    b.addEventListener('click', ()=> {
-      if (!isAdmin) return
-      socket.emit('select', { type: 'category', value: c })
+    b.dataset.id = c
+    b.addEventListener('click', () => {
+      if (!amAdmin) return
+      socket.emit('select', { type: 'category', id: c })
     })
-    categoryButtons.appendChild(b)
+    ccont.appendChild(b)
   })
 }
-function updateSelections(){
-  document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.classList.toggle('selected', btn.textContent === localSelection.category)
-  })
-  document.querySelectorAll('.player-btn').forEach(btn => {
-    btn.classList.toggle('selected', Array.from(btn.textContent).join('') && false)
-  })
-  document.querySelectorAll('.player-btn').forEach(btn => {
-    const id = Array.from(document.querySelectorAll('.player-btn')).indexOf(btn)
-  })
-  document.querySelectorAll('.player-btn').forEach(btn => btn.classList.remove('selected'))
-  const players = document.querySelectorAll('#playerButtons .player-btn')
-  players.forEach(pbtn => {
-    if (!localSelection.playerId) return
-    const name = pbtn.textContent
-    const matched = Array.from(Object.values(document.querySelectorAll('#playerButtons .player-btn'))).find(pb=>pb.textContent===name)
-    if (!matched) return
-    const idx = Array.from(document.querySelectorAll('#playerButtons .player-btn')).indexOf(matched)
+function renderTeamButtons(teams) {
+  const tcont = el('teamButtons')
+  tcont.innerHTML = ''
+  (teams||[]).forEach(t => {
+    const b = document.createElement('button')
+    b.textContent = t.name
+    b.dataset.id = t.id
+    b.addEventListener('click', () => {
+      if (amAdmin) {
+        socket.emit('select', { type: 'team', id: t.id })
+      } else {
+        socket.emit('choose_team', t.id)
+      }
+    })
+    tcont.appendChild(b)
   })
 }
-window.addEventListener('beforeunload', function (e) {
-  e.preventDefault()
-  e.returnValue = ''
+function renderSelections() {
+  const sel = state.selections || {}
+  Array.from(document.querySelectorAll('#categoryButtons button')).forEach(b => b.classList.toggle('selected', b.dataset.id === sel.category))
+  Array.from(document.querySelectorAll('#playerButtons button')).forEach(b => b.classList.toggle('selected', b.dataset.id === sel.playerId))
+  Array.from(document.querySelectorAll('#teamButtons button')).forEach(b => b.classList.toggle('selected', b.dataset.id === sel.teamId))
+  const startBtn = el('startRoundBtn')
+  if (amAdmin && sel.category && sel.playerId && sel.teamId) startBtn.classList.remove('hidden') else startBtn.classList.add('hidden')
+}
+function startCountdown(endTime) {
+  clearInterval(window._countdownInterval)
+  function tick() {
+    const now = Date.now()
+    const rem = Math.max(0, Math.ceil((endTime - now)/1000))
+    el('countdown').textContent = rem
+    if (rem <= 0) clearInterval(window._countdownInterval)
+  }
+  tick()
+  window._countdownInterval = setInterval(tick, 250)
+}
+function renderVerification(words, scores) {
+  const correct = words.filter(w => w.status === 'acertou')
+  const skipped = words.filter(w => w.status === 'pulou')
+  const cl = el('correctList'); cl.innerHTML = '<h4>Acertadas</h4>'
+  correct.forEach(w => { const d = document.createElement('div'); d.className='correctItem'; d.textContent = w.word; cl.appendChild(d) })
+  const sl = el('skipList'); sl.innerHTML = '<h4>Puladas</h4>'
+  skipped.forEach(w => { const d = document.createElement('div'); d.className='skipItem'; d.textContent = w.word; sl.appendChild(d) })
+  renderTeams(scores)
+  if (amAdmin) el('continueBtn').classList.remove('hidden') else el('continueBtn').classList.add('hidden')
+}
+function renderTeams(scores) {
+  if (!scores) return
+  const tdiv = el('teams')
+  const names = Array.from(tdiv.querySelectorAll('.teamCard'))
+  scores.forEach((s,i) => {
+    if (names[i]) names[i].querySelector('div:last-child').textContent = s.score
+  })
+}
+socket.on('state', s => {
+  renderTeamButtons(s.teams)
 })
-initCategories()
-socket.emit('requestState')
-showInitial()
