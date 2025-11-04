@@ -1,326 +1,252 @@
 const socket = io();
-let me = { id: null, name: null, role: 'visitor' };
-let categories = [];
-let scores = { equipe1: 0, equipe2: 0 };
+let myId = null;
+let myName = "";
+let isAdmin = false;
 let selectedCategory = null;
-let selectedPlayerId = null;
-let roundActiveForMe = false;
-let roundTimer = null;
-let roundRemaining = 75;
-
-const initialScreen = document.getElementById('initial-screen');
-const nameInput = document.getElementById('nameInput');
-const confirmName = document.getElementById('confirmName');
-const roleButtons = document.getElementById('roleButtons');
-const btnVisitor = document.getElementById('btnVisitor');
-const btnAdmin = document.getElementById('btnAdmin');
-const adminPass = document.getElementById('adminPass');
-const passInput = document.getElementById('passInput');
-const submitPass = document.getElementById('submitPass');
-
-const gameScreen = document.getElementById('game-screen');
-const categoryButtons = document.getElementById('categoryButtons');
-const playerButtons = document.getElementById('playerButtons');
-const startRoundWrap = document.getElementById('startRoundWrap');
-const startRoundBtn = document.getElementById('startRoundBtn');
-
-const score1El = document.getElementById('score1');
-const score2El = document.getElementById('score2');
-const resetBtn = document.getElementById('resetBtn');
-
-const roundSection = document.getElementById('roundSection');
-const roundTimerEl = document.getElementById('roundTimer');
-const roundWordEl = document.getElementById('roundWord');
-const correctBtn = document.getElementById('correctBtn');
-const skipBtn = document.getElementById('skipBtn');
-const skipMessage = document.getElementById('skipMessage');
-
-const verification = document.getElementById('verification');
-const verificationList = document.getElementById('verificationList');
-const continueBtn = document.getElementById('continueBtn');
-
-confirmName.addEventListener('click', ()=>{
-  const name = nameInput.value.trim() || 'Visitante';
-  me.name = name;
-  socket.emit('join', { name });
-  roleButtons.classList.remove('hidden');
+let selectedPlayer = null;
+let selectedTeam = null;
+let availableSelection = {};
+const categories = [
+  { key: "animais", label: "Animais" },
+  { key: "tv_e_cinema", label: "TV e Cinema" },
+  { key: "objetos", label: "Objetos" },
+  { key: "lugares", label: "Lugares" },
+  { key: "pessoas", label: "Pessoas" },
+  { key: "esportes_e_jogos", label: "Esportes e Jogos" },
+  { key: "profissoes", label: "Profissões" },
+  { key: "alimentos", label: "Alimentos" },
+  { key: "personagens", label: "Personagens" },
+  { key: "biblico", label: "Bíblico" }
+];
+const el = id => document.getElementById(id);
+function show(elm, v) { if (v) elm.classList.remove("hidden"); else elm.classList.add("hidden"); }
+function createBtn(text, cls = "catBtn") { const b = document.createElement("button"); b.className = cls; b.innerText = text; return b; }
+el("confirmName").addEventListener("click", () => {
+  const name = el("nameInput").value.trim() || "Visitante";
+  myName = name;
+  socket.emit("join", name);
+  show(el("initialScreen"), false);
+  show(el("gameScreen"), true);
+  show(el("categoriesSection"), true);
+  show(el("topSection"), true);
+  show(el("roundSection"), false);
+  show(el("verificationSection"), false);
+  show(el("roleButtons"), true);
 });
-
-btnVisitor.addEventListener('click', ()=>{
-  socket.emit('becomeVisitor');
-  enterGame();
+el("visitorBtn").addEventListener("click", () => {
+  socket.emit("setPlayerTeam", { teamKey: null });
+  show(el("adminPanel"), false);
+  show(el("roleButtons"), false);
 });
-
-btnAdmin.addEventListener('click', ()=>{
-  adminPass.classList.remove('hidden');
-  roleButtons.classList.add('hidden');
+el("adminBtn").addEventListener("click", () => {
+  show(el("adminPanel"), true);
+  show(el("roleButtons"), false);
 });
-
-submitPass.addEventListener('click', ()=>{
-  const pass = passInput.value || '';
-  socket.emit('becomeAdmin', { password: pass });
+el("adminLogin").addEventListener("click", () => {
+  const pw = el("adminPw").value || "";
+  socket.emit("becomeAdmin", pw);
 });
-
-socket.on('adminAccepted', ()=>{
-  enterGame();
-  me.role = 'admin';
-  updateAdminUI();
+el("startGameBtn").addEventListener("click", () => {
+  const tA = el("teamAName").value.trim() || "Equipe A";
+  const tB = el("teamBName").value.trim() || "Equipe B";
+  socket.emit("setTeamNames", { teamA: tA, teamB: tB });
+  socket.emit("startGame");
 });
-
-socket.on('adminDenied', ()=>{
-  alert('Senha incorreta');
+el("resetBtn").addEventListener("click", () => {
+  socket.emit("reset");
 });
-
-function enterGame(){
-  initialScreen.classList.add('hidden');
-  gameScreen.classList.remove('hidden');
-  updateAdminUI();
-}
-
-socket.on('init', (data)=>{
-  categories = data.categories || [];
-  scores = data.scores || scores;
-  renderCategories();
-  updateScores();
+el("startRoundBtn").addEventListener("click", () => {
+  if (!selectedCategory || !selectedPlayer || !selectedTeam) return;
+  socket.emit("startRound", { playerId: selectedPlayer, category: selectedCategory, teamKey: selectedTeam });
 });
-
-socket.on('players', (list)=>{
-  renderPlayers(list);
+el("acertouBtn").addEventListener("click", () => {
+  socket.emit("acertou");
 });
-
-socket.on('state', (s)=>{
-  categories = s.categories || categories;
-  selectedCategory = s.selectedCategory || null;
-  selectedPlayerId = s.selectedPlayerId || null;
-  renderCategories();
-  renderPlayersFromState(s.players || []);
-  updateScoresDisplay(s.scores || scores);
-  if (!s.currentRoundActive) {
-    hideRoundForAll();
-  }
+el("pularBtn").addEventListener("click", () => {
+  socket.emit("pular");
 });
-
-socket.on('scores', (sc)=>{
-  scores = sc;
-  updateScores();
+el("continueBtn").addEventListener("click", () => {
+  socket.emit("continue");
 });
-
-function updateScoresDisplay(sc){
-  if (!sc) return;
-  scores = sc;
-  updateScores();
-}
-
-function updateScores(){
-  score1El.textContent = scores.equipe1;
-  score2El.textContent = scores.equipe2;
-}
-
-function updateAdminUI(){
-  if (me.role === 'admin') {
-    document.querySelectorAll('.score-controls .btn').forEach(b=>b.style.display='inline-block');
-    resetBtn.style.display = 'inline-block';
-    document.querySelectorAll('.btn.catBtn, .btn.playerBtn').forEach(b=>{
-      b.disabled = false;
+window.addEventListener("beforeunload", function (e) {
+  e.preventDefault();
+  e.returnValue = "";
+});
+socket.on("connect", () => {
+  myId = socket.id;
+});
+socket.on("players", list => {
+  const wrap = el("playersList");
+  wrap.innerHTML = "";
+  list.forEach(p => {
+    const b = createBtn(p.name, "playerBtn");
+    if (p.id === selectedPlayer) b.classList.add("selected");
+    b.addEventListener("click", () => {
+      if (!isAdmin) return;
+      selectedPlayer = p.id;
+      updateSelectionsUI();
+      socket.emit("selectPlayerTeamCategory", { selectedPlayer, selectedCategory, selectedTeam });
     });
-  } else {
-    document.querySelectorAll('.score-controls .btn').forEach(b=>b.style.display='none');
-    resetBtn.style.display = 'none';
-  }
-}
-
-function renderCategories(){
-  categoryButtons.innerHTML = '';
-  categories.forEach(cat=>{
-    const b = document.createElement('button');
-    b.className = 'btn catBtn';
-    b.textContent = cat;
-    b.dataset.cat = cat;
-    if (selectedCategory === cat) b.classList.add('selected');
-    b.addEventListener('click', ()=>{
-      if (me.role !== 'admin') return;
-      selectedCategory = cat;
-      socket.emit('selectCategory', cat);
-      document.querySelectorAll('.btn.catBtn').forEach(x=>x.classList.remove('selected'));
-      b.classList.add('selected');
-      checkStartVisible();
+    wrap.appendChild(b);
+  });
+  if (list.length === 0) return;
+});
+socket.on("teams", t => {
+  const wrap = el("teamsList");
+  wrap.innerHTML = "";
+  const aBtn = createBtn(t.a.name, "teamBtn");
+  const bBtn = createBtn(t.b.name, "teamBtn");
+  if (selectedTeam === "a") aBtn.classList.add("selected");
+  if (selectedTeam === "b") bBtn.classList.add("selected");
+  aBtn.addEventListener("click", () => {
+    if (!isAdmin) return;
+    selectedTeam = "a";
+    updateSelectionsUI();
+    socket.emit("selectPlayerTeamCategory", { selectedPlayer, selectedCategory, selectedTeam });
+  });
+  bBtn.addEventListener("click", () => {
+    if (!isAdmin) return;
+    selectedTeam = "b";
+    updateSelectionsUI();
+    socket.emit("selectPlayerTeamCategory", { selectedPlayer, selectedCategory, selectedTeam });
+  });
+  wrap.appendChild(aBtn);
+  wrap.appendChild(bBtn);
+  el("scoreA").querySelector(".teamName").innerText = t.a.name;
+  el("scoreB").querySelector(".teamName").innerText = t.b.name;
+  el("scoreA").querySelector(".teamScore").innerText = t.a.score;
+  el("scoreB").querySelector(".teamScore").innerText = t.b.score;
+});
+function buildCategories() {
+  const wrap = el("categoriesButtons");
+  wrap.innerHTML = "";
+  categories.forEach(cat => {
+    const b = createBtn(cat.label, "catBtn");
+    b.addEventListener("click", () => {
+      if (!isAdmin) return;
+      if (selectedCategory === cat.key) selectedCategory = null; else selectedCategory = cat.key;
+      updateSelectionsUI();
+      socket.emit("selectPlayerTeamCategory", { selectedPlayer, selectedCategory, selectedTeam });
     });
-    categoryButtons.appendChild(b);
+    wrap.appendChild(b);
   });
 }
-
-function renderPlayers(list){
-  playerButtons.innerHTML = '';
-  list.forEach(p=>{
-    const b = document.createElement('button');
-    b.className = 'btn playerBtn';
-    b.textContent = p.name + (p.role === 'admin' ? ' (Admin)' : '');
-    b.dataset.id = p.id;
-    b.addEventListener('click', ()=>{
-      if (me.role !== 'admin') {
-        if (p.id === me.id) {
-          selectedPlayerId = p.id;
-          checkStartVisible();
+buildCategories();
+function updateSelectionsUI() {
+  document.querySelectorAll(".catBtn").forEach((b, i) => {
+    const key = categories[i].key;
+    if (selectedCategory === key) b.classList.add("selected"); else b.classList.remove("selected");
+  });
+  document.querySelectorAll(".playerBtn").forEach(b => {
+    b.classList.remove("selected");
+    if (b.innerText === "") return;
+  });
+  document.querySelectorAll(".playerBtn").forEach(b => {
+    const txt = b.innerText;
+    if (!txt) return;
+    if (selectedPlayer) {
+      const elPlayer = Array.from(document.querySelectorAll(".playerBtn")).find(x => x.innerText === txt);
+      if (elPlayer) {
+        if (elPlayer && selectedPlayer) {
+          if (elPlayer && elPlayer._id === selectedPlayer) elPlayer.classList.add("selected");
         }
-        return;
       }
-      selectedPlayerId = p.id;
-      socket.emit('selectPlayer', p.id);
-      document.querySelectorAll('.btn.playerBtn').forEach(x=>x.classList.remove('selected'));
-      b.classList.add('selected');
-      checkStartVisible();
-    });
-    playerButtons.appendChild(b);
+    }
   });
-}
-
-function renderPlayersFromState(list){
-  playerButtons.innerHTML = '';
-  list.forEach(p=>{
-    const b = document.createElement('button');
-    b.className = 'btn playerBtn';
-    b.textContent = p.name + (p.role === 'admin' ? ' (Admin)' : '');
-    b.dataset.id = p.id;
-    if (selectedPlayerId === p.id) b.classList.add('selected');
-    b.addEventListener('click', ()=>{
-      if (me.role !== 'admin') {
-        if (p.id === me.id) {
-          selectedPlayerId = p.id;
-          checkStartVisible();
-        }
-        return;
-      }
-      selectedPlayerId = p.id;
-      socket.emit('selectPlayer', p.id);
-      document.querySelectorAll('.btn.playerBtn').forEach(x=>x.classList.remove('selected'));
-      b.classList.add('selected');
-      checkStartVisible();
-    });
-    playerButtons.appendChild(b);
+  document.querySelectorAll(".teamBtn").forEach((b, i) => {
+    const key = i === 0 ? "a" : "b";
+    if (selectedTeam === key) b.classList.add("selected"); else b.classList.remove("selected");
   });
-  checkStartVisible();
+  if (selectedCategory && selectedPlayer && selectedTeam && isAdmin) show(el("startRoundWrapper"), true); else show(el("startRoundWrapper"), false);
 }
-
-function checkStartVisible(){
-  if (selectedCategory && selectedPlayerId && me.role === 'admin') {
-    startRoundWrap.classList.remove('hidden');
+socket.on("adminResult", res => {
+  if (res.ok) {
+    isAdmin = true;
+    show(el("adminPanel"), true);
+    show(el("teamNaming"), true);
+    show(el("adminError"), false);
+    show(el("resetBtn"), true);
   } else {
-    startRoundWrap.classList.add('hidden');
-  }
-}
-
-startRoundBtn.addEventListener('click', ()=>{
-  socket.emit('startRound');
-});
-
-socket.on('roundStart', ({duration})=>{
-  roundActiveForMe = true;
-  roundRemaining = duration;
-  roundSection.classList.remove('collapsed');
-  roundSection.classList.add('expanded');
-  verification.classList.add('collapsed');
-  startLocalTimer();
-});
-
-socket.on('roundWord', ({word, remaining})=>{
-  roundWordEl.textContent = word;
-  roundRemaining = remaining;
-  roundTimerEl.textContent = remaining;
-});
-
-socket.on('roundHiddenForAll', ({except})=>{
-  if (socket.id !== except) {
-    hideRoundForAll();
+    el("adminError").innerText = res.message || "Erro";
+    show(el("adminError"), true);
   }
 });
-
-function hideRoundForAll(){
-  roundSection.classList.add('collapsed');
-  roundSection.classList.remove('expanded');
-  roundActiveForMe = false;
-  stopLocalTimer();
-}
-
-function startLocalTimer(){
-  stopLocalTimer();
-  roundTimerEl.textContent = roundRemaining;
-  roundTimer = setInterval(()=>{
-    roundRemaining = Math.max(0, roundRemaining - 1);
-    roundTimerEl.textContent = roundRemaining;
-    if (roundRemaining <= 0) {
-      clearInterval(roundTimer);
-    }
-  }, 1000);
-}
-
-function stopLocalTimer(){
-  if (roundTimer) clearInterval(roundTimer);
-  roundTimer = null;
-}
-
-correctBtn.addEventListener('click', ()=>{
-  socket.emit('roundCorrect');
+socket.on("gameStarted", () => {
+  show(el("initialScreen"), false);
+  show(el("gameScreen"), true);
 });
-
-skipBtn.addEventListener('click', ()=>{
-  skipBtn.disabled = true;
-  skipMessage.textContent = 'Pulando...';
-  socket.emit('roundSkip');
-  setTimeout(()=>{
-    skipBtn.disabled = false;
-    skipMessage.textContent = '';
-  }, 3000);
+socket.on("selection", sel => {
+  availableSelection = sel;
 });
-
-socket.on('roundEnded', ({report})=>{
-  roundSection.classList.add('collapsed');
-  verification.classList.remove('collapsed');
-  verification.classList.add('expanded');
-  verificationList.innerHTML = '';
-  report.forEach(r=>{
-    const d = document.createElement('div');
-    d.textContent = r.word;
-    d.className = 'verItem';
-    d.style.padding = '10px';
-    d.style.borderRadius = '8px';
-    d.style.margin = '6px 0';
-    if (r.status === 'correct') {
-      d.style.background = 'rgba(34,197,94,0.15)';
-      d.style.color = '#a7f3d0';
-    } else {
-      d.style.background = 'rgba(239,68,68,0.12)';
-      d.style.color = '#fecaca';
-    }
-    verificationList.appendChild(d);
+socket.on("roundStarted", data => {
+  show(el("categoriesSection"), false);
+  show(el("roundSection"), true);
+  if (data.playerId === myId) {
+    show(el("roundSection"), true);
+  }
+});
+socket.on("categoriesVisible", v => {
+  if (v) {
+    show(el("categoriesSection"), true);
+    show(el("roundSection"), false);
+  } else {
+    show(el("categoriesSection"), false);
+  }
+});
+socket.on("newWord", d => {
+  if (d.for === myId) {
+    el("wordDisplay").innerText = d.word || "—";
+    show(el("skipping"), false);
+  }
+});
+socket.on("tick", rem => {
+  el("timerDisplay").innerText = rem;
+});
+socket.on("skipping", d => {
+  if (d.for === myId) {
+    show(el("skipping"), true);
+    el("wordDisplay").innerText = "";
+  }
+});
+socket.on("roundEnded", payload => {
+  show(el("roundSection"), false);
+  show(el("verificationSection"), true);
+  const corr = el("correctList");
+  const sk = el("skippedList");
+  corr.innerHTML = "";
+  sk.innerHTML = "";
+  payload.correct.forEach(w => {
+    const div = document.createElement("div");
+    div.className = "wordItem correct";
+    div.innerText = w;
+    corr.appendChild(div);
   });
-});
-
-continueBtn.addEventListener('click', ()=>{
-  socket.emit('continueAfterVerification');
-  verification.classList.add('collapsed');
-  verification.classList.remove('expanded');
-  startRoundWrap.classList.add('hidden');
-});
-
-resetBtn.addEventListener('click', ()=>{
-  if (me.role !== 'admin') return;
-  socket.emit('reset');
-});
-
-document.querySelectorAll('.score-controls .btn').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    if (me.role !== 'admin') return;
-    const team = Number(b.dataset.team);
-    const delta = b.dataset.action === 'add' ? 1 : -1;
-    socket.emit('changeScore', { team, delta });
+  payload.skipped.forEach(w => {
+    const div = document.createElement("div");
+    div.className = "wordItem skipped";
+    div.innerText = w;
+    sk.appendChild(div);
   });
+  el("scoreA").querySelector(".teamScore").innerText = payload.teams.a.score;
+  el("scoreB").querySelector(".teamScore").innerText = payload.teams.b.score;
+  if (isAdmin) show(el("continueBtn"), true); else show(el("continueBtn"), false);
 });
-
-socket.on('resetAll', ()=>{
+socket.on("verificationHidden", () => {
+  show(el("verificationSection"), false);
+});
+socket.on("reset", () => {
   location.reload();
 });
-
-window.addEventListener('beforeunload', function (e) {
-  e.preventDefault();
-  e.returnValue = '';
+socket.on("adminAssigned", id => {
+  if (id === myId) {
+    isAdmin = true;
+    show(el("resetBtn"), true);
+  }
 });
+socket.on("gameState", s => {
+  if (s && s.adminId && s.adminId === myId) {
+    isAdmin = true;
+    show(el("resetBtn"), true);
+  }
+});
+socket.on("connect_error", () => {});

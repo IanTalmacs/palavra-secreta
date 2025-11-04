@@ -1,87 +1,74 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-  <title>Jogo de Palavras</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="/socket.io/socket.io.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Jogo Realtime</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="app">
-    <div id="initial-screen" class="card center">
-      <h1>Jogo de Palavras</h1>
-      <input id="nameInput" placeholder="Seu nome" />
-      <button id="confirmName" class="btn primary big">Confirmar nome</button>
-      <div id="roleButtons" class="row hidden">
-        <button id="btnVisitor" class="btn big">Visitante</button>
-        <button id="btnAdmin" class="btn outline big">Admin</button>
-      </div>
-      <div id="adminPass" class="hidden">
-        <input id="passInput" type="password" placeholder="Senha de Admin" />
-        <button id="submitPass" class="btn primary">Entrar como Admin</button>
-      </div>
+<div id="app">
+  <div id="initialScreen" class="screen">
+    <div class="logo">Música & Jogo</div>
+    <input id="nameInput" placeholder="Seu nome" maxlength="24" />
+    <button id="confirmName" class="large primary">Confirmar nome</button>
+    <div id="roleButtons" class="row hidden">
+      <button id="visitorBtn" class="large secondary">Visitante</button>
+      <button id="adminBtn" class="large secondary">Admin</button>
     </div>
-
-    <div id="game-screen" class="hidden">
-      <div class="top fixed">
-        <div class="score card">
-          <div class="team">
-            <div class="team-name">Equipe 1</div>
-            <div class="team-score" id="score1">0</div>
-            <div class="score-controls">
-              <button class="btn small" data-action="add" data-team="1">+</button>
-              <button class="btn small" data-action="sub" data-team="1">-</button>
-            </div>
-          </div>
-          <div class="vs">vs</div>
-          <div class="team">
-            <div class="team-name">Equipe 2</div>
-            <div class="team-score" id="score2">0</div>
-            <div class="score-controls">
-              <button class="btn small" data-action="add" data-team="2">+</button>
-              <button class="btn small" data-action="sub" data-team="2">-</button>
-            </div>
-          </div>
-          <div class="reset-wrap">
-            <button id="resetBtn" class="btn danger">Resetar</button>
-          </div>
-        </div>
+    <div id="adminPanel" class="card hidden">
+      <input id="adminPw" type="password" placeholder="Senha de admin" />
+      <button id="adminLogin" class="large primary">Entrar como Admin</button>
+      <div id="teamNaming" class="hidden">
+        <input id="teamAName" placeholder="Nome da Equipe A" />
+        <input id="teamBName" placeholder="Nome da Equipe B" />
+        <button id="startGameBtn" class="large primary">Iniciar</button>
       </div>
-
-      <main class="content">
-        <section id="categorias" class="card expanded">
-          <h2>Categorias</h2>
-          <div id="categoryButtons" class="wrap"></div>
-          <h3>Players conectados</h3>
-          <div id="playerButtons" class="wrap"></div>
-          <div id="startRoundWrap" class="center hidden">
-            <button id="startRoundBtn" class="btn primary big">Começar round</button>
-          </div>
-        </section>
-
-        <section id="roundSection" class="card collapsed">
-          <div id="roundInner" class="center">
-            <div id="roundTimer" class="timer">75</div>
-            <div id="roundWord" class="word">---</div>
-            <div class="roundButtons">
-              <button id="correctBtn" class="circle green big">ACERTOU</button>
-              <button id="skipBtn" class="circle red big">PULAR</button>
-            </div>
-            <div id="skipMessage" class="muted"></div>
-          </div>
-        </section>
-
-        <section id="verification" class="card collapsed">
-          <h2>Verificação</h2>
-          <div id="verificationList" class="wrap column"></div>
-          <div class="center">
-            <button id="continueBtn" class="btn primary">Continuar</button>
-          </div>
-        </section>
-      </main>
+      <div id="adminError" class="error"></div>
     </div>
   </div>
-  <script src="client.js"></script>
+
+  <div id="gameScreen" class="screen hidden">
+    <div id="topSection" class="top">
+      <div class="score" id="scoreA"><div class="teamName">Equipe A</div><div class="teamScore">0</div></div>
+      <div class="controls">
+        <button id="resetBtn" class="small danger hidden">Resetar</button>
+      </div>
+      <div class="score" id="scoreB"><div class="teamName">Equipe B</div><div class="teamScore">0</div></div>
+    </div>
+
+    <div id="categoriesSection" class="card">
+      <div class="catRow" id="categoriesButtons"></div>
+      <div class="subTitle">Jogadores</div>
+      <div id="playersList" class="rowWrap"></div>
+      <div class="subTitle">Equipes</div>
+      <div id="teamsList" class="rowWrap"></div>
+      <div id="startRoundWrapper" class="center hidden">
+        <button id="startRoundBtn" class="large primary">Começar Round</button>
+      </div>
+    </div>
+
+    <div id="roundSection" class="card hidden">
+      <div class="timer" id="timerDisplay">75</div>
+      <div class="word" id="wordDisplay">Palavra</div>
+      <div class="roundButtons">
+        <button id="acertouBtn" class="circle green">ACERTOU</button>
+        <button id="pularBtn" class="circle red">PULAR</button>
+      </div>
+      <div id="skipping" class="center hidden">Pulando...</div>
+    </div>
+
+    <div id="verificationSection" class="card hidden">
+      <div class="subTitle">Verificação</div>
+      <div id="correctList" class="wordList"></div>
+      <div id="skippedList" class="wordList"></div>
+      <div class="center">
+        <button id="continueBtn" class="large primary hidden">Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
 </body>
 </html>
