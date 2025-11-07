@@ -1,158 +1,302 @@
-// public/client.js
 const socket = io();
-const initialDiv = document.getElementById('initial');
-const mainDiv = document.getElementById('main');
-const startBtn = document.getElementById('startBtn');
-const team1Input = document.getElementById('team1');
-const team2Input = document.getElementById('team2');
-const passwordInput = document.getElementById('password');
-const startMsg = document.getElementById('startMsg');
-const teamAName = document.getElementById('teamAName');
-const teamBName = document.getElementById('teamBName');
-const teamAScore = document.getElementById('teamAScore');
-const teamBScore = document.getElementById('teamBScore');
-const categorySelect = document.getElementById('categorySelect');
-const teamSelect = document.getElementById('teamSelect');
-const startRoundBtn = document.getElementById('startRoundBtn');
-const roundOverlay = document.getElementById('roundOverlay');
-const wordBox = document.getElementById('wordBox');
-const correctBtn = document.getElementById('correctBtn');
-const skipBtn = document.getElementById('skipBtn');
-const skipText = document.getElementById('skipText');
-const timeLeft = document.getElementById('timeLeft');
-const resetAll = document.getElementById('resetAll');
-const remainingDiv = document.getElementById('remaining');
-let roundTimerInterval = null;
-let roundEndTime = null;
-let roundActive = false;
-let currentCategory = null;
-socket.on('init', ({ started, teams, scores, categories, remaining })=>{
-  populateCategories(categories || []);
-  updateScores(scores || {a:0,b:0});
-  setTeams(teams || {a:'Equipe A', b:'Equipe B'});
-  if(started){ initialDiv.classList.add('hidden'); mainDiv.classList.remove('hidden'); } else { initialDiv.classList.remove('hidden'); mainDiv.classList.add('hidden'); }
-  updateRemaining(remaining || 0);
-});
-socket.on('gameStarted', ({ teams, scores, remaining })=>{
-  initialDiv.classList.add('hidden');
-  mainDiv.classList.remove('hidden');
-  setTeams(teams);
-  updateScores(scores);
-  updateRemaining(remaining);
-});
-socket.on('gameReset', ()=> {
-  initialDiv.classList.remove('hidden');
-  mainDiv.classList.add('hidden');
-  stopRoundUI();
-});
-socket.on('scoreUpdate', (scores)=> updateScores(scores));
-socket.on('state', ({ started, teams, scores, remaining })=>{
-  setTeams(teams);
-  updateScores(scores);
-  if(started){ initialDiv.classList.add('hidden'); mainDiv.classList.remove('hidden'); } else { initialDiv.classList.remove('hidden'); mainDiv.classList.add('hidden'); }
-  updateRemaining(remaining || 0);
-});
-socket.on('roundStarted', ({ word, duration })=>{
-  startRoundUI(word, duration);
-});
-socket.on('newWord', ({ word })=>{
-  setWord(word);
-});
-socket.on('noWords', ()=>{
-  setWord('acabaram as palavras');
-  setTimeout(()=> endRoundClient(), 1200);
-});
-socket.on('roundEnded', ()=> {
-  endRoundClient();
-});
-socket.on('startFailed', ()=> {
-  startMsg.textContent = 'Senha incorreta ou jogo já iniciado';
-  setTimeout(()=> startMsg.textContent = '', 2500);
-});
-function populateCategories(categories){
-  categorySelect.innerHTML = '';
-  (categories || []).forEach(c=>{
-    const o = document.createElement('option'); o.value = c; o.textContent = c; categorySelect.appendChild(o);
-  });
-  currentCategory = categorySelect.value;
-}
-function setTeams(teams){
-  teamAName.textContent = teams.a || 'Equipe A';
-  teamBName.textContent = teams.b || 'Equipe B';
-  const aOpt = teamSelect.querySelector('option[value="a"]');
-  const bOpt = teamSelect.querySelector('option[value="b"]');
-  aOpt.textContent = teams.a || 'Equipe A';
-  bOpt.textContent = teams.b || 'Equipe B';
-}
-function updateScores(scores){
-  teamAScore.textContent = (scores.a || 0);
-  teamBScore.textContent = (scores.b || 0);
-}
-startBtn.addEventListener('click', ()=>{
-  const t1 = team1Input.value.trim() || 'Equipe A';
-  const t2 = team2Input.value.trim() || 'Equipe B';
-  const pw = passwordInput.value;
-  socket.emit('startGame', { team1: t1, team2: t2, password: pw });
-});
-startRoundBtn.addEventListener('click', ()=>{
-  const category = categorySelect.value;
-  const team = teamSelect.value;
-  socket.emit('startRound', { category, team });
-});
-correctBtn.addEventListener('click', ()=>{
-  if(!roundActive) return;
-  const team = teamSelect.value;
-  socket.emit('roundCorrect', { team });
-});
-skipBtn.addEventListener('click', ()=>{
-  if(!roundActive) return;
-  skipText.textContent = 'pulando...';
-  socket.emit('roundSkip');
-  setTimeout(()=> skipText.textContent = '', 3000);
-});
-resetAll.addEventListener('click', ()=>{
-  socket.emit('resetGame');
-});
-function startRoundUI(word, duration){
-  roundActive = true;
-  roundOverlay.classList.remove('hidden');
-  setWord(word);
-  roundEndTime = Date.now() + duration*1000;
-  timeLeft.textContent = Math.ceil((roundEndTime - Date.now())/1000);
-  if(roundTimerInterval) clearInterval(roundTimerInterval);
-  roundTimerInterval = setInterval(()=>{
-    const sec = Math.ceil((roundEndTime - Date.now())/1000);
-    if(sec <= 0){
-      timeLeft.textContent = '0';
-      clearInterval(roundTimerInterval);
-      roundTimerInterval = null;
-      endRoundClient();
-    } else {
-      timeLeft.textContent = sec;
+
+let myId = null;
+let isAdmin = false;
+let gameState = null;
+let roundTimer = null;
+let currentWord = null;
+let skipTimeout = null;
+
+const joinScreen = document.getElementById('join-screen');
+const gameScreen = document.getElementById('game-screen');
+const nameInput = document.getElementById('name-input');
+const joinBtn = document.getElementById('join-btn');
+const lobbyPlayers = document.getElementById('lobby-players');
+const team1Players = document.getElementById('team1-players');
+const team2Players = document.getElementById('team2-players');
+const team1NameInput = document.getElementById('team1-name');
+const team2NameInput = document.getElementById('team2-name');
+const team1ScoreName = document.getElementById('team1-score-name');
+const team2ScoreName = document.getElementById('team2-score-name');
+const team1Score = document.getElementById('team1-score');
+const team2Score = document.getElementById('team2-score');
+const categoryBtns = document.querySelectorAll('.category-btn');
+const playerButtons = document.getElementById('player-buttons');
+const startRoundBtn = document.getElementById('start-round-btn');
+const roundHistory = document.getElementById('round-history');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const resetBtn = document.getElementById('reset-btn');
+const roundPopup = document.getElementById('round-popup');
+const timerEl = document.getElementById('timer');
+const wordDisplay = document.getElementById('word-display');
+const skipBtn = document.getElementById('skip-btn');
+const correctBtn = document.getElementById('correct-btn');
+const screens = document.querySelectorAll('.game-screen-content');
+
+joinBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (name) {
+        socket.emit('joinGame', name);
+        myId = socket.id;
+        joinScreen.classList.remove('active');
+        gameScreen.classList.add('active');
     }
-  }, 250);
+});
+
+nameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        joinBtn.click();
+    }
+});
+
+socket.on('gameState', (state) => {
+    gameState = state;
+    updateUI();
+});
+
+function updateUI() {
+    const me = gameState.players.find(p => p.id === myId);
+    isAdmin = me ? me.isAdmin : false;
+
+    lobbyPlayers.innerHTML = '';
+    gameState.players.forEach(player => {
+        if (!gameState.teams.team1.players.includes(player.id) && 
+            !gameState.teams.team2.players.includes(player.id)) {
+            const playerDiv = createPlayerDiv(player);
+            lobbyPlayers.appendChild(playerDiv);
+        }
+    });
+
+    team1Players.innerHTML = '';
+    gameState.teams.team1.players.forEach(playerId => {
+        const player = gameState.players.find(p => p.id === playerId);
+        if (player) {
+            const playerDiv = createPlayerDiv(player);
+            team1Players.appendChild(playerDiv);
+        }
+    });
+
+    team2Players.innerHTML = '';
+    gameState.teams.team2.players.forEach(playerId => {
+        const player = gameState.players.find(p => p.id === playerId);
+        if (player) {
+            const playerDiv = createPlayerDiv(player);
+            team2Players.appendChild(playerDiv);
+        }
+    });
+
+    team1NameInput.value = gameState.teams.team1.name;
+    team2NameInput.value = gameState.teams.team2.name;
+
+    team1ScoreName.textContent = gameState.teams.team1.name;
+    team2ScoreName.textContent = gameState.teams.team2.name;
+    team1Score.textContent = gameState.teams.team1.score;
+    team2Score.textContent = gameState.teams.team2.score;
+
+    categoryBtns.forEach(btn => {
+        if (btn.dataset.category === gameState.selectedCategory) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+
+    playerButtons.innerHTML = '';
+    gameState.players.forEach(player => {
+        const btn = document.createElement('button');
+        btn.className = 'player-btn';
+        btn.textContent = player.name;
+        if (player.id === gameState.selectedPlayer) {
+            btn.classList.add('selected');
+        }
+        btn.addEventListener('click', () => {
+            if (isAdmin) {
+                socket.emit('selectPlayer', player.id);
+            }
+        });
+        playerButtons.appendChild(btn);
+    });
+
+    roundHistory.innerHTML = '';
+    gameState.roundHistory.forEach(item => {
+        const div = document.createElement('div');
+        div.className = `history-word ${item.status}`;
+        div.textContent = item.word;
+        roundHistory.appendChild(div);
+    });
+
+    showScreen(gameState.currentScreen);
 }
-function setWord(word){
-  wordBox.textContent = word || '';
+
+function createPlayerDiv(player) {
+    const div = document.createElement('div');
+    div.className = 'player-item';
+    div.textContent = player.name;
+    div.draggable = isAdmin;
+    div.dataset.playerId = player.id;
+
+    if (isAdmin) {
+        div.addEventListener('dragstart', handleDragStart);
+        div.addEventListener('dragend', handleDragEnd);
+    }
+
+    return div;
 }
-function endRoundClient(){
-  roundActive = false;
-  roundOverlay.classList.add('hidden');
-  if(roundTimerInterval){ clearInterval(roundTimerInterval); roundTimerInterval = null; }
+
+let draggedPlayerId = null;
+
+function handleDragStart(e) {
+    draggedPlayerId = e.target.dataset.playerId;
+    e.target.classList.add('dragging');
 }
-function stopRoundUI(){
-  roundActive = false;
-  roundOverlay.classList.add('hidden');
-  if(roundTimerInterval){ clearInterval(roundTimerInterval); roundTimerInterval = null; }
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
 }
-function updateRemaining(ms){
-  if(!ms || ms<=0){ remainingDiv.textContent = ''; return; }
-  const s = Math.ceil(ms/1000);
-  const mins = Math.floor(s/60);
-  const secs = s%60;
-  remainingDiv.textContent = `Tempo restante: ${mins}m ${secs}s`;
-  setTimeout(()=> {
-    socket.emit('requestState');
-  }, 1000);
+
+[lobbyPlayers, team1Players, team2Players].forEach(container => {
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        container.classList.add('drag-over');
+    });
+
+    container.addEventListener('dragleave', () => {
+        container.classList.remove('drag-over');
+    });
+
+    container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        container.classList.remove('drag-over');
+        
+        if (!isAdmin) return;
+
+        const team = container.dataset.team || null;
+        socket.emit('moveToTeam', {
+            playerId: myId,
+            targetPlayerId: draggedPlayerId,
+            team: team
+        });
+    });
+});
+
+team1NameInput.addEventListener('change', (e) => {
+    if (isAdmin) {
+        socket.emit('renameTeam', { team: 'team1', name: e.target.value });
+    }
+});
+
+team2NameInput.addEventListener('change', (e) => {
+    if (isAdmin) {
+        socket.emit('renameTeam', { team: 'team2', name: e.target.value });
+    }
+});
+
+categoryBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (isAdmin) {
+            socket.emit('selectCategory', btn.dataset.category);
+        }
+    });
+});
+
+startRoundBtn.addEventListener('click', () => {
+    if (isAdmin) {
+        socket.emit('startRound');
+    }
+});
+
+prevBtn.addEventListener('click', () => {
+    if (isAdmin && gameState.currentScreen > 1) {
+        socket.emit('changeScreen', gameState.currentScreen - 1);
+    }
+});
+
+nextBtn.addEventListener('click', () => {
+    if (isAdmin && gameState.currentScreen < 3) {
+        socket.emit('changeScreen', gameState.currentScreen + 1);
+    }
+});
+
+resetBtn.addEventListener('click', () => {
+    if (isAdmin && confirm('Tem certeza que deseja resetar o jogo?')) {
+        socket.emit('resetGame');
+        location.reload();
+    }
+});
+
+function showScreen(screenNum) {
+    screens.forEach((screen, index) => {
+        if (index + 1 === screenNum) {
+            screen.classList.add('active');
+        } else {
+            screen.classList.remove('active');
+        }
+    });
 }
-setInterval(()=> { socket.emit('requestState'); }, 5000);
+
+socket.on('showRoundPopup', () => {
+    roundPopup.classList.add('active');
+    startRoundTimer();
+    requestNewWord();
+});
+
+function startRoundTimer() {
+    let timeLeft = 75;
+    timerEl.textContent = timeLeft;
+
+    roundTimer = setInterval(() => {
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+            endRound();
+        }
+    }, 1000);
+}
+
+function endRound() {
+    clearInterval(roundTimer);
+    clearTimeout(skipTimeout);
+    roundPopup.classList.remove('active');
+    socket.emit('endRound');
+}
+
+function requestNewWord() {
+    socket.emit('getWord');
+}
+
+socket.on('newWord', (word) => {
+    currentWord = word;
+    wordDisplay.textContent = word;
+    skipBtn.disabled = false;
+    correctBtn.disabled = false;
+    skipBtn.textContent = 'Pular';
+});
+
+socket.on('noMoreWords', () => {
+    wordDisplay.textContent = 'Sem mais palavras!';
+    skipBtn.disabled = true;
+    correctBtn.disabled = true;
+});
+
+correctBtn.addEventListener('click', () => {
+    if (currentWord) {
+        socket.emit('wordCorrect', currentWord);
+        requestNewWord();
+    }
+});
+
+skipBtn.addEventListener('click', () => {
+    if (currentWord) {
+        skipBtn.disabled = true;
+        correctBtn.disabled = true;
+        skipBtn.textContent = 'Pulando...';
+        
+        socket.emit('wordSkip', currentWord);
+        
+        skipTimeout = setTimeout(() => {
+            requestNewWord();
+        }, 3000);
+    }
+});

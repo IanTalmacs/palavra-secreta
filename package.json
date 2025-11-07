@@ -1,5 +1,5 @@
 {
-  "name": "browser-game",
+  "name": "word-game",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -7,6 +7,6 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.6.1"
   }
 }

@@ -1,59 +1,96 @@
-<!-- public/index.html -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jogo</title>
-<link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Game</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="app">
-  <button id="resetAll" aria-label="Reset">R</button>
-  <div id="initial" class="card center">
-    <h1>Iniciar Jogo</h1>
-    <input id="team1" placeholder="Nome equipe 1" maxlength="20" />
-    <input id="team2" placeholder="Nome equipe 2" maxlength="20" />
-    <input id="password" placeholder="Senha" type="password" maxlength="20" />
-    <button id="startBtn">Iniciar jogo</button>
-    <div id="startMsg" class="msg"></div>
-  </div>
-  <div id="main" class="hidden">
-    <header class="scoreboard">
-      <div class="team" id="teamA">
-        <div class="team-name" id="teamAName">Equipe A</div>
-        <div class="team-score" id="teamAScore">0</div>
-      </div>
-      <div class="team" id="teamB">
-        <div class="team-name" id="teamBName">Equipe B</div>
-        <div class="team-score" id="teamBScore">0</div>
-      </div>
-    </header>
-    <main class="controls">
-      <label>Categorias</label>
-      <select id="categorySelect"></select>
-      <label>Escolher equipe</label>
-      <select id="teamSelect">
-        <option value="a">Equipe A</option>
-        <option value="b">Equipe B</option>
-      </select>
-      <button id="startRoundBtn" class="primary">Iniciar round</button>
-      <div id="remaining" class="small"></div>
-    </main>
-  </div>
-  <div id="roundOverlay" class="hidden">
-    <div class="roundCard">
-      <div id="timeLeft" class="timer">75</div>
-      <div id="wordBox" class="word">...</div>
-      <div id="skipText" class="skipText"></div>
-      <div class="roundButtons">
-        <button id="correctBtn" class="circle green">acertou</button>
-        <button id="skipBtn" class="circle red">pular</button>
-      </div>
+    <div id="app">
+        <div id="join-screen" class="screen active">
+            <div class="container">
+                <h1>Word Game</h1>
+                <input type="text" id="name-input" placeholder="Digite seu nome" />
+                <button id="join-btn" class="btn-primary">Entrar</button>
+            </div>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <button id="reset-btn" class="reset-btn">R</button>
+            
+            <div id="screen-1" class="game-screen-content active">
+                <h2>Lobby</h2>
+                <div id="lobby-players"></div>
+                
+                <div class="teams-container">
+                    <div class="team">
+                        <input type="text" id="team1-name" class="team-name-input" placeholder="Nome da Equipe 1" />
+                        <div id="team1-players" class="team-players" data-team="team1"></div>
+                    </div>
+                    <div class="team">
+                        <input type="text" id="team2-name" class="team-name-input" placeholder="Nome da Equipe 2" />
+                        <div id="team2-players" class="team-players" data-team="team2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="screen-2" class="game-screen-content">
+                <div class="scoreboard">
+                    <div class="score-item">
+                        <span id="team1-score-name">Equipe 1</span>
+                        <span id="team1-score">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span id="team2-score-name">Equipe 2</span>
+                        <span id="team2-score">0</span>
+                    </div>
+                </div>
+
+                <h3>Categorias</h3>
+                <div class="categories">
+                    <button class="category-btn" data-category="animais">Animais</button>
+                    <button class="category-btn" data-category="tv_cinema">TV e Cinema</button>
+                    <button class="category-btn" data-category="objetos">Objetos</button>
+                    <button class="category-btn" data-category="lugares">Lugares</button>
+                    <button class="category-btn" data-category="pessoas">Pessoas</button>
+                    <button class="category-btn" data-category="esportes_jogos">Esportes e Jogos</button>
+                    <button class="category-btn" data-category="profissoes">Profissões</button>
+                    <button class="category-btn" data-category="alimentos">Alimentos</button>
+                    <button class="category-btn" data-category="personagens">Personagens</button>
+                    <button class="category-btn" data-category="biblico">Bíblico</button>
+                </div>
+
+                <h3>Jogadores</h3>
+                <div id="player-buttons" class="player-buttons"></div>
+
+                <button id="start-round-btn" class="btn-primary">Iniciar Round</button>
+            </div>
+
+            <div id="screen-3" class="game-screen-content">
+                <h2>Histórico do Round</h2>
+                <div id="round-history"></div>
+            </div>
+
+            <div class="navigation">
+                <button id="prev-btn" class="nav-btn">Anterior</button>
+                <button id="next-btn" class="nav-btn">Avançar</button>
+            </div>
+        </div>
+
+        <div id="round-popup" class="popup">
+            <div class="popup-content">
+                <div class="timer" id="timer">75</div>
+                <div class="word-display" id="word-display">Carregando...</div>
+                <div class="round-buttons">
+                    <button id="skip-btn" class="round-btn skip-btn">Pular</button>
+                    <button id="correct-btn" class="round-btn correct-btn">Acertou</button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
-<script src="/socket.io/socket.io.js"></script>
-<script src="client.js"></script>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
 </body>
 </html>
