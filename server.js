@@ -65,8 +65,12 @@ function setGameTimeout() {
 
 io.on('connection', (socket) => {
   socket.emit('gameState', gameState);
+  socket.emit('myId', socket.id);
 
   socket.on('joinGame', (name) => {
+    const existingPlayer = gameState.players.find(p => p.id === socket.id);
+    if (existingPlayer) return;
+
     const isAdmin = name.toLowerCase().includes('admin');
     const player = {
       id: socket.id,
