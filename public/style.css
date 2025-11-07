@@ -81,17 +81,12 @@ h3 {
     transition: background 0.3s;
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover {
     background: #1ed760;
 }
 
-.btn-primary:active:not(:disabled) {
+.btn-primary:active {
     background: #1aa34a;
-}
-
-.btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 #lobby-players {
@@ -145,11 +140,6 @@ h3 {
     color: #ffffff;
     margin-bottom: 10px;
     outline: none;
-}
-
-.team-name-input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
 }
 
 .team-players {
@@ -210,7 +200,7 @@ h3 {
     transition: all 0.2s;
 }
 
-.category-btn:hover:not(:disabled) {
+.category-btn:hover {
     border-color: #1db954;
 }
 
@@ -219,11 +209,6 @@ h3 {
     border-color: #1db954;
     color: #000;
     font-weight: bold;
-}
-
-.category-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 .player-buttons {
@@ -244,7 +229,7 @@ h3 {
     transition: all 0.2s;
 }
 
-.player-btn:hover:not(:disabled) {
+.player-btn:hover {
     border-color: #1db954;
 }
 
@@ -253,11 +238,6 @@ h3 {
     border-color: #1db954;
     color: #000;
     font-weight: bold;
-}
-
-.player-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 #round-history {
@@ -305,19 +285,14 @@ h3 {
     transition: all 0.2s;
 }
 
-.nav-btn:hover:not(:disabled) {
+.nav-btn:hover {
     background: #282828;
     color: #ffffff;
 }
 
-.nav-btn:active:not(:disabled) {
+.nav-btn:active {
     background: #1db954;
     color: #000;
-}
-
-.nav-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
 }
 
 .reset-btn {

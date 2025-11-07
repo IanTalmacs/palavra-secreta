@@ -91,15 +91,12 @@ function updateUI() {
         }
     });
 
-    if (!team1NameInput.value || team1NameInput.value !== gameState.teams.team1.name) {
+    if (document.activeElement !== team1NameInput) {
         team1NameInput.value = gameState.teams.team1.name;
     }
-    if (!team2NameInput.value || team2NameInput.value !== gameState.teams.team2.name) {
+    if (document.activeElement !== team2NameInput) {
         team2NameInput.value = gameState.teams.team2.name;
     }
-    
-    team1NameInput.disabled = !isAdmin;
-    team2NameInput.disabled = !isAdmin;
 
     team1ScoreName.textContent = gameState.teams.team1.name;
     team2ScoreName.textContent = gameState.teams.team2.name;
@@ -112,7 +109,6 @@ function updateUI() {
         } else {
             btn.classList.remove('selected');
         }
-        btn.disabled = !isAdmin;
     });
 
     playerButtons.innerHTML = '';
@@ -120,7 +116,6 @@ function updateUI() {
         const btn = document.createElement('button');
         btn.className = 'player-btn';
         btn.textContent = player.name;
-        btn.disabled = !isAdmin;
         if (player.id === gameState.selectedPlayer) {
             btn.classList.add('selected');
         }
@@ -131,11 +126,6 @@ function updateUI() {
         });
         playerButtons.appendChild(btn);
     });
-    
-    startRoundBtn.disabled = !isAdmin;
-    prevBtn.disabled = !isAdmin;
-    nextBtn.disabled = !isAdmin;
-    resetBtn.style.display = isAdmin ? 'block' : 'none';
 
     roundHistory.innerHTML = '';
     gameState.roundHistory.forEach(item => {
@@ -199,15 +189,15 @@ function handleDragEnd(e) {
     });
 });
 
-team1NameInput.addEventListener('blur', (e) => {
-    if (isAdmin && e.target.value.trim()) {
-        socket.emit('renameTeam', { team: 'team1', name: e.target.value.trim() });
+team1NameInput.addEventListener('change', (e) => {
+    if (isAdmin) {
+        socket.emit('renameTeam', { team: 'team1', name: e.target.value });
     }
 });
 
-team2NameInput.addEventListener('blur', (e) => {
-    if (isAdmin && e.target.value.trim()) {
-        socket.emit('renameTeam', { team: 'team2', name: e.target.value.trim() });
+team2NameInput.addEventListener('change', (e) => {
+    if (isAdmin) {
+        socket.emit('renameTeam', { team: 'team2', name: e.target.value });
     }
 });
 

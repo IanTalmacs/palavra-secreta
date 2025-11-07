@@ -212,7 +212,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    gameState.players = gameState.players.filter(p => p.id !== socket.id);
+    const playerIndex = gameState.players.findIndex(p => p.id === socket.id);
+    if (playerIndex !== -1) {
+      gameState.players.splice(playerIndex, 1);
+    }
+    
     gameState.teams.team1.players = gameState.teams.team1.players.filter(id => id !== socket.id);
     gameState.teams.team2.players = gameState.teams.team2.players.filter(id => id !== socket.id);
     
