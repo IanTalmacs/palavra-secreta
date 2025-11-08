@@ -1,102 +1,106 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jogo de Palavras</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Palavras</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
+    <div id="app">
+        <div id="screen1" class="screen">
+            <div class="header">
+                <h1>Jogo de Palavras</h1>
+            </div>
+            
+            <div class="name-section">
+                <input type="text" id="nameInput" placeholder="Digite seu nome" maxlength="20">
+                <button id="confirmNameBtn" class="btn-primary">Confirmar Nome</button>
+            </div>
+
+            <div class="teams-section">
+                <div class="team-container">
+                    <h2>Equipe 1</h2>
+                    <div id="team1" class="team-box"></div>
+                </div>
+                
+                <div class="team-container">
+                    <h2>Equipe 2</h2>
+                    <div id="team2" class="team-box"></div>
+                </div>
+            </div>
+
+            <button id="goToCategoriesBtn" class="btn-primary" style="display: none;">Categorias</button>
+        </div>
+
+        <div id="screen2" class="screen" style="display: none;">
+            <div class="header">
+                <div class="score-board">
+                    <div class="score-item">
+                        <span>Equipe 1</span>
+                        <span id="score1" class="score-number">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span>Equipe 2</span>
+                        <span id="score2" class="score-number">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="categories-section">
+                <h2>Categorias</h2>
+                <div id="categoriesContainer" class="categories-grid"></div>
+            </div>
+
+            <div class="players-section">
+                <h2>Jogadores</h2>
+                <div id="playersContainer" class="players-grid"></div>
+            </div>
+
+            <button id="startRoundBtn" class="btn-primary">Iniciar Round</button>
+        </div>
+
+        <div id="screen3" class="screen" style="display: none;">
+            <div class="countdown-container">
+                <div id="countdown" class="countdown">75</div>
+            </div>
+
+            <div id="wordContainer" style="display: none;">
+                <div id="currentWord" class="current-word"></div>
+                
+                <div class="action-buttons">
+                    <button id="correctBtn" class="btn-round btn-correct">✓<br>Acertou</button>
+                    <button id="skipBtn" class="btn-round btn-skip">×<br>Pular</button>
+                </div>
+                
+                <div id="skippingMessage" class="skipping-message" style="display: none;">Pulando...</div>
+            </div>
+        </div>
+
+        <div id="screen4" class="screen" style="display: none;">
+            <div class="header">
+                <h1>Resultado do Round</h1>
+            </div>
+
+            <div class="results-section">
+                <div class="result-container">
+                    <h2 class="result-title correct">Palavras Acertadas</h2>
+                    <div id="correctWordsList" class="words-list"></div>
+                </div>
+
+                <div class="result-container">
+                    <h2 class="result-title skipped">Palavras Puladas</h2>
+                    <div id="skippedWordsList" class="words-list"></div>
+                </div>
+            </div>
+
+            <button id="backToCategoriesBtn" class="btn-primary">Categorias</button>
+        </div>
+    </div>
+
     <button id="resetBtn" class="reset-btn">R</button>
-    
-    <div id="screen1" class="screen">
-      <h1>Jogo de Palavras</h1>
-      <div class="players-list" id="playersList"></div>
-      <div class="join-form">
-        <input type="text" id="nameInput" placeholder="Seu nome">
-        <button id="joinBtn">Entrar</button>
-      </div>
-    </div>
 
-    <div id="screen2" class="screen hidden">
-      <h2>Configuração</h2>
-      <div class="teams-config">
-        <div class="team-input">
-          <label>Equipe 1:</label>
-          <input type="text" id="team1Input" placeholder="Nome Equipe 1">
-        </div>
-        <div class="team-input">
-          <label>Equipe 2:</label>
-          <input type="text" id="team2Input" placeholder="Nome Equipe 2">
-        </div>
-        <button id="setTeamsBtn">Definir Equipes</button>
-      </div>
-      
-      <div class="round-config">
-        <h3>Iniciar Round</h3>
-        <select id="categorySelect">
-          <option value="">Selecione Categoria</option>
-          <option value="animais">Animais</option>
-          <option value="tv_cinema">TV e Cinema</option>
-          <option value="objetos">Objetos</option>
-          <option value="lugares">Lugares</option>
-          <option value="pessoas">Pessoas</option>
-          <option value="esportes_jogos">Esportes e Jogos</option>
-          <option value="profissoes">Profissões</option>
-          <option value="alimentos">Alimentos</option>
-          <option value="personagens">Personagens</option>
-          <option value="biblico">Bíblico</option>
-        </select>
-        
-        <select id="playerSelect">
-          <option value="">Selecione Player</option>
-        </select>
-        
-        <select id="teamSelect">
-          <option value="">Selecione Equipe</option>
-          <option value="team1">Equipe 1</option>
-          <option value="team2">Equipe 2</option>
-        </select>
-        
-        <button id="startRoundBtn">Iniciar Round</button>
-      </div>
-    </div>
-
-    <div id="screen3" class="screen hidden">
-      <div class="scoreboard">
-        <div class="team-score">
-          <h3 id="team1Name">Equipe 1</h3>
-          <p id="team1Score">0</p>
-        </div>
-        <div class="team-score">
-          <h3 id="team2Name">Equipe 2</h3>
-          <p id="team2Score">0</p>
-        </div>
-      </div>
-      
-      <div class="words-history" id="wordsHistory"></div>
-    </div>
-
-    <div id="roundPopup" class="popup hidden">
-      <div class="popup-content">
-        <div class="timer" id="timer">75</div>
-        <div class="word" id="currentWord"></div>
-        <div class="popup-buttons">
-          <button id="correctBtn" class="btn-correct">Acertou</button>
-          <button id="skipBtn" class="btn-skip">Pular</button>
-        </div>
-        <div id="skippingMsg" class="skipping-msg hidden">Pulando...</div>
-      </div>
-    </div>
-
-    <div class="navigation" id="navigation">
-      <button id="prevBtn">Anterior</button>
-      <button id="nextBtn">Avançar</button>
-    </div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
 </body>
 </html>
