@@ -1,455 +1,208 @@
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: #121212;
-    color: #ffffff;
-    min-height: 100vh;
-    overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #121212;
+  color: #fff;
+  min-height: 100vh;
 }
 
 #app {
-    max-width: 100%;
-    min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px;
+  position: relative;
+  min-height: 100vh;
 }
 
 .screen {
-    display: none;
-    min-height: 100vh;
+  padding-bottom: 80px;
 }
 
-.screen.active {
-    display: block;
+.hidden {
+  display: none !important;
 }
 
-.container {
-    padding: 20px;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-h1 {
-    font-size: 2.5rem;
-    margin-bottom: 2rem;
-    text-align: center;
-    color: #1db954;
-}
-
-h2 {
-    font-size: 1.8rem;
-    margin-bottom: 1.5rem;
-    text-align: center;
-    color: #ffffff;
-}
-
-h3 {
-    font-size: 1.2rem;
-    margin: 1.5rem 0 1rem 0;
-    color: #b3b3b3;
-}
-
-#name-input {
-    width: 100%;
-    padding: 15px;
-    font-size: 1rem;
-    border: none;
-    border-radius: 25px;
-    background: #282828;
-    color: #ffffff;
-    margin-bottom: 1rem;
-    outline: none;
-}
-
-#name-input::placeholder {
-    color: #666;
-}
-
-.btn-primary {
-    width: 100%;
-    padding: 15px;
-    font-size: 1rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 25px;
-    background: #1db954;
-    color: #ffffff;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.btn-primary:hover {
-    background: #1ed760;
-}
-
-.btn-primary:active {
-    background: #1aa34a;
-}
-
-#lobby-players {
-    background: #181818;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 1.5rem;
-    min-height: 60px;
-}
-
-.player-item {
-    background: #282828;
-    padding: 12px 15px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    cursor: move;
-    transition: background 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.player-item:hover {
-    background: #333;
-}
-
-.player-item.dragging {
-    opacity: 0.5;
-}
-
-.teams-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 1rem;
-}
-
-.team {
-    background: #181818;
-    border-radius: 12px;
-    padding: 15px;
-}
-
-.team-name-input {
-    width: 100%;
-    padding: 10px;
-    font-size: 0.9rem;
-    border: none;
-    border-radius: 8px;
-    background: #282828;
-    color: #ffffff;
-    margin-bottom: 10px;
-    outline: none;
-}
-
-.team-players {
-    min-height: 100px;
-    border: 2px dashed #333;
-    border-radius: 8px;
-    padding: 8px;
-}
-
-.team-players.drag-over {
-    border-color: #1db954;
-    background: rgba(29, 185, 84, 0.1);
-}
-
-.scoreboard {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 2rem;
-}
-
-.score-item {
-    background: #181818;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-}
-
-.score-item span:first-child {
-    display: block;
-    font-size: 0.9rem;
-    color: #b3b3b3;
-    margin-bottom: 8px;
-}
-
-.score-item span:last-child {
-    display: block;
-    font-size: 2.5rem;
-    font-weight: bold;
-    color: #1db954;
-}
-
-.categories {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 1.5rem;
-}
-
-.category-btn {
-    padding: 12px;
-    font-size: 0.9rem;
-    border: 2px solid #282828;
-    border-radius: 20px;
-    background: #181818;
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.category-btn:hover {
-    border-color: #1db954;
-}
-
-.category-btn.selected {
-    background: #1db954;
-    border-color: #1db954;
-    color: #000;
-    font-weight: bold;
-}
-
-.player-buttons {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 1.5rem;
-}
-
-.player-btn {
-    padding: 12px;
-    font-size: 0.9rem;
-    border: 2px solid #282828;
-    border-radius: 20px;
-    background: #181818;
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.player-btn:hover {
-    border-color: #1db954;
-}
-
-.player-btn.selected {
-    background: #1db954;
-    border-color: #1db954;
-    color: #000;
-    font-weight: bold;
-}
-
-#round-history {
-    padding: 15px;
-}
-
-.history-word {
-    padding: 12px 15px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    font-size: 1rem;
-}
-
-.history-word.correct {
-    background: rgba(29, 185, 84, 0.2);
-    border-left: 4px solid #1db954;
-    color: #1db954;
-}
-
-.history-word.skip {
-    background: rgba(255, 59, 48, 0.2);
-    border-left: 4px solid #ff3b30;
-    color: #ff3b30;
-}
-
-.navigation {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    background: #181818;
-    border-top: 1px solid #282828;
-}
-
-.nav-btn {
-    padding: 18px;
-    font-size: 1rem;
-    border: none;
-    background: #181818;
-    color: #b3b3b3;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.nav-btn:hover {
-    background: #282828;
-    color: #ffffff;
-}
-
-.nav-btn:active {
-    background: #1db954;
-    color: #000;
+h1, h2, h3 {
+  margin-bottom: 20px;
 }
 
 .reset-btn {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: none;
-    background: #ff3b30;
-    color: #ffffff;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 100;
-    transition: all 0.2s;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #1db954;
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 100;
 }
 
-.reset-btn:hover {
-    background: #ff453a;
-    transform: scale(1.1);
+.players-list {
+  margin: 20px 0;
 }
 
-.game-screen-content {
-    display: none;
-    padding: 20px;
-    padding-bottom: 80px;
+.player-item {
+  background: #282828;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 8px;
 }
 
-.game-screen-content.active {
-    display: block;
+.join-form {
+  margin-top: 20px;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  background: #282828;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  background: #1db954;
+  border: none;
+  border-radius: 20px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1ed760;
+}
+
+.teams-config, .round-config {
+  margin: 20px 0;
+}
+
+.scoreboard {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.team-score {
+  text-align: center;
+}
+
+.team-score p {
+  font-size: 48px;
+  font-weight: bold;
+  color: #1db954;
+}
+
+.words-history {
+  margin-top: 20px;
+}
+
+.word-item {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 8px;
+}
+
+.word-correct {
+  background: #1db954;
+}
+
+.word-skip {
+  background: #e22134;
 }
 
 .popup {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.95);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-}
-
-.popup.active {
-    display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
 .popup-content {
-    background: #181818;
-    border-radius: 20px;
-    padding: 30px;
-    max-width: 90%;
-    width: 400px;
-    text-align: center;
+  text-align: center;
+  padding: 40px;
 }
 
 .timer {
-    font-size: 3rem;
-    font-weight: bold;
-    color: #1db954;
-    margin-bottom: 2rem;
+  font-size: 72px;
+  font-weight: bold;
+  color: #1db954;
+  margin-bottom: 30px;
 }
 
-.word-display {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #ffffff;
-    margin-bottom: 2rem;
-    min-height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.word {
+  font-size: 36px;
+  margin: 30px 0;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.round-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+.popup-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 30px;
 }
 
-.round-btn {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    border: none;
-    font-size: 0.85rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin: 0 auto;
+.btn-correct, .btn-skip {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  font-size: 14px;
 }
 
-.skip-btn {
-    background: #ff3b30;
-    color: #ffffff;
+.btn-correct {
+  background: #1db954;
 }
 
-.skip-btn:hover {
-    background: #ff453a;
-    transform: scale(1.1);
+.btn-skip {
+  background: #e22134;
 }
 
-.skip-btn:active {
-    transform: scale(0.95);
+.skipping-msg {
+  font-size: 24px;
+  color: #e22134;
+  margin-top: 20px;
 }
 
-.correct-btn {
-    background: #1db954;
-    color: #000;
+.navigation {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: #121212;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
-.correct-btn:hover {
-    background: #1ed760;
-    transform: scale(1.1);
-}
-
-.correct-btn:active {
-    transform: scale(0.95);
-}
-
-@media (max-width: 600px) {
-    h1 {
-        font-size: 2rem;
-    }
-
-    h2 {
-        font-size: 1.5rem;
-    }
-
-    .teams-container {
-        grid-template-columns: 1fr;
-    }
-
-    .categories {
-        grid-template-columns: 1fr;
-    }
-
-    .player-buttons {
-        grid-template-columns: 1fr;
-    }
-
-    .round-btn {
-        width: 70px;
-        height: 70px;
-        font-size: 0.8rem;
-    }
-
-    .timer {
-        font-size: 2.5rem;
-    }
-
-    .word-display {
-        font-size: 1.5rem;
-        min-height: 60px;
-    }
+.navigation button {
+  flex: 1;
+  margin: 0;
 }

@@ -1,96 +1,102 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Game</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo de Palavras</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <div id="join-screen" class="screen active">
-            <div class="container">
-                <h1>Word Game</h1>
-                <input type="text" id="name-input" placeholder="Digite seu nome" />
-                <button id="join-btn" class="btn-primary">Entrar</button>
-            </div>
-        </div>
-
-        <div id="game-screen" class="screen">
-            <button id="reset-btn" class="reset-btn">R</button>
-            
-            <div id="screen-1" class="game-screen-content active">
-                <h2>Lobby</h2>
-                <div id="lobby-players"></div>
-                
-                <div class="teams-container">
-                    <div class="team">
-                        <input type="text" id="team1-name" class="team-name-input" placeholder="Nome da Equipe 1" />
-                        <div id="team1-players" class="team-players" data-team="team1"></div>
-                    </div>
-                    <div class="team">
-                        <input type="text" id="team2-name" class="team-name-input" placeholder="Nome da Equipe 2" />
-                        <div id="team2-players" class="team-players" data-team="team2"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="screen-2" class="game-screen-content">
-                <div class="scoreboard">
-                    <div class="score-item">
-                        <span id="team1-score-name">Equipe 1</span>
-                        <span id="team1-score">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span id="team2-score-name">Equipe 2</span>
-                        <span id="team2-score">0</span>
-                    </div>
-                </div>
-
-                <h3>Categorias</h3>
-                <div class="categories">
-                    <button class="category-btn" data-category="animais">Animais</button>
-                    <button class="category-btn" data-category="tv_cinema">TV e Cinema</button>
-                    <button class="category-btn" data-category="objetos">Objetos</button>
-                    <button class="category-btn" data-category="lugares">Lugares</button>
-                    <button class="category-btn" data-category="pessoas">Pessoas</button>
-                    <button class="category-btn" data-category="esportes_jogos">Esportes e Jogos</button>
-                    <button class="category-btn" data-category="profissoes">Profissões</button>
-                    <button class="category-btn" data-category="alimentos">Alimentos</button>
-                    <button class="category-btn" data-category="personagens">Personagens</button>
-                    <button class="category-btn" data-category="biblico">Bíblico</button>
-                </div>
-
-                <h3>Jogadores</h3>
-                <div id="player-buttons" class="player-buttons"></div>
-
-                <button id="start-round-btn" class="btn-primary">Iniciar Round</button>
-            </div>
-
-            <div id="screen-3" class="game-screen-content">
-                <h2>Histórico do Round</h2>
-                <div id="round-history"></div>
-            </div>
-
-            <div class="navigation">
-                <button id="prev-btn" class="nav-btn">Anterior</button>
-                <button id="next-btn" class="nav-btn">Avançar</button>
-            </div>
-        </div>
-
-        <div id="round-popup" class="popup">
-            <div class="popup-content">
-                <div class="timer" id="timer">75</div>
-                <div class="word-display" id="word-display">Carregando...</div>
-                <div class="round-buttons">
-                    <button id="skip-btn" class="round-btn skip-btn">Pular</button>
-                    <button id="correct-btn" class="round-btn correct-btn">Acertou</button>
-                </div>
-            </div>
-        </div>
+  <div id="app">
+    <button id="resetBtn" class="reset-btn">R</button>
+    
+    <div id="screen1" class="screen">
+      <h1>Jogo de Palavras</h1>
+      <div class="players-list" id="playersList"></div>
+      <div class="join-form">
+        <input type="text" id="nameInput" placeholder="Seu nome">
+        <button id="joinBtn">Entrar</button>
+      </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="client.js"></script>
+    <div id="screen2" class="screen hidden">
+      <h2>Configuração</h2>
+      <div class="teams-config">
+        <div class="team-input">
+          <label>Equipe 1:</label>
+          <input type="text" id="team1Input" placeholder="Nome Equipe 1">
+        </div>
+        <div class="team-input">
+          <label>Equipe 2:</label>
+          <input type="text" id="team2Input" placeholder="Nome Equipe 2">
+        </div>
+        <button id="setTeamsBtn">Definir Equipes</button>
+      </div>
+      
+      <div class="round-config">
+        <h3>Iniciar Round</h3>
+        <select id="categorySelect">
+          <option value="">Selecione Categoria</option>
+          <option value="animais">Animais</option>
+          <option value="tv_cinema">TV e Cinema</option>
+          <option value="objetos">Objetos</option>
+          <option value="lugares">Lugares</option>
+          <option value="pessoas">Pessoas</option>
+          <option value="esportes_jogos">Esportes e Jogos</option>
+          <option value="profissoes">Profissões</option>
+          <option value="alimentos">Alimentos</option>
+          <option value="personagens">Personagens</option>
+          <option value="biblico">Bíblico</option>
+        </select>
+        
+        <select id="playerSelect">
+          <option value="">Selecione Player</option>
+        </select>
+        
+        <select id="teamSelect">
+          <option value="">Selecione Equipe</option>
+          <option value="team1">Equipe 1</option>
+          <option value="team2">Equipe 2</option>
+        </select>
+        
+        <button id="startRoundBtn">Iniciar Round</button>
+      </div>
+    </div>
+
+    <div id="screen3" class="screen hidden">
+      <div class="scoreboard">
+        <div class="team-score">
+          <h3 id="team1Name">Equipe 1</h3>
+          <p id="team1Score">0</p>
+        </div>
+        <div class="team-score">
+          <h3 id="team2Name">Equipe 2</h3>
+          <p id="team2Score">0</p>
+        </div>
+      </div>
+      
+      <div class="words-history" id="wordsHistory"></div>
+    </div>
+
+    <div id="roundPopup" class="popup hidden">
+      <div class="popup-content">
+        <div class="timer" id="timer">75</div>
+        <div class="word" id="currentWord"></div>
+        <div class="popup-buttons">
+          <button id="correctBtn" class="btn-correct">Acertou</button>
+          <button id="skipBtn" class="btn-skip">Pular</button>
+        </div>
+        <div id="skippingMsg" class="skipping-msg hidden">Pulando...</div>
+      </div>
+    </div>
+
+    <div class="navigation" id="navigation">
+      <button id="prevBtn">Anterior</button>
+      <button id="nextBtn">Avançar</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
 </body>
 </html>
